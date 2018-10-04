@@ -1,1 +1,1 @@
-# pytorch-generative
+# generative
