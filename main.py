@@ -75,7 +75,7 @@ def test(epoch):
 def draw_figs(epoch):
     # TODO: ugly. refactor. can we move this to a separate file?
     samples = model.sample(num_samples=100).view(-1, 28, 28).data.cpu().numpy()
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(5, 5))
     plt.suptitle('Samples, Epoch {}'.format(epoch), fontsize=20)
     plt.axis('square')
     plt.legend(frameon=True)
@@ -83,10 +83,10 @@ def draw_figs(epoch):
         plt.subplot(10, 10, idx+1)
         plt.imshow(im, cmap='Greys')
         plt.axis('off')
-    plt.savefig('figs/{}/samples_{:04}.png'.format(args.exp_name, epoch))
+    plt.savefig('figs/{}/samples_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
 
-    files = [file for file in pathlib.Path(figs_dir).glob('samples_*.png')]
+    files = [file for file in pathlib.Path(figs_dir).glob('samples_*.jpg')]
     images = [imageio.imread(str(file)) for file in sorted(files)]
     imageio.mimsave('{}/samples.gif'.format(figs_dir), images)
 
@@ -96,7 +96,7 @@ def draw_figs(epoch):
     outs = model(data)
     data = data.view(args.batch_size, 28, 28)
     recon = outs['x_dist'].probs.view(args.batch_size, 28, 28)
-    plt.figure(figsize=(10, 10))
+    plt.figure(figsize=(5, 5))
     plt.suptitle('Reconstruction, Epoch {}'.format(epoch), fontsize=20)
     plt.axis('square')
     plt.legend(frameon=True)
@@ -109,10 +109,10 @@ def draw_figs(epoch):
         plt.subplot(10, 10, 2*i+2)
         plt.imshow(recon_i, cmap='Greys')
         plt.axis('off')
-    plt.savefig('figs/{}/reconstruction_{:04}.png'.format(args.exp_name, epoch))
+    plt.savefig('figs/{}/reconstruction_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
 
-    files = [file for file in pathlib.Path(figs_dir).glob('reconstruction_*.png')]
+    files = [file for file in pathlib.Path(figs_dir).glob('reconstruction_*.jpg')]
     images = [imageio.imread(str(file)) for file in sorted(files)]
     imageio.mimsave('{}/reconstruction.gif'.format(figs_dir), images)
 
@@ -123,6 +123,7 @@ def draw_figs(epoch):
             latent_space.append(model.encode(data).loc.data.cpu().numpy())
             labels.append(label)
         latent_space, labels = np.concatenate(latent_space), np.concatenate(labels)
+        plt.figure(figsize=(5, 5))
         for c in range(10):
             idx = (labels == c)
             plt.scatter(latent_space[idx, 0], latent_space[idx, 1],
@@ -130,10 +131,10 @@ def draw_figs(epoch):
         plt.suptitle('Latent representation, Epoch {}'.format(epoch), fontsize=20)
         plt.axis('square')
         plt.legend(frameon=True)
-        plt.savefig('figs/{}/latent_{:04}.png'.format(args.exp_name, epoch))
+        plt.savefig('figs/{}/latent_{:04}.jpg'.format(args.exp_name, epoch))
         plt.clf()
 
-        files = [file for file in pathlib.Path(figs_dir).glob('latent*.png')]
+        files = [file for file in pathlib.Path(figs_dir).glob('latent*.jpg')]
         images = [imageio.imread(str(file)) for file in sorted(files)]
         imageio.mimsave('{}/latent.gif'.format(figs_dir), images)
 
