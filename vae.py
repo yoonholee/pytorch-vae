@@ -6,6 +6,7 @@ from torch.distributions.bernoulli import Bernoulli
 class VAE(nn.Module):
     def __init__(self, device, x_dim, h_dim, z_dim, beta):
         super(VAE, self).__init__()
+        self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
         self.beta = beta
         self.encoder = nn.Sequential(
             nn.Linear(x_dim, h_dim), nn.Tanh(),
@@ -21,6 +22,7 @@ class VAE(nn.Module):
         self.analytic_kl = True
 
     def encode(self, x):
+        x = self.proc_data(x)
         h = self.encoder(x)
         mu, _std = self.enc_mu(h), self.enc_sig(h)
         std = torch.exp(.5 * _std)
@@ -32,12 +34,12 @@ class VAE(nn.Module):
 
     def forward(self, true_x):
         z_dist = self.encode(true_x)
-        #z = z_dist.rsample() if self.training else z_dist.loc
         z = z_dist.rsample()
         x_dist = self.decode(z)
         return {'x_dist': x_dist, 'z': z, 'z_dist': z_dist}
 
     def loss(self, true_x, z, x_dist, z_dist):
+        true_x = self.proc_data(true_x)
         if not self.analytic_kl: # SGVB^A: log p(z) + log p(x|z)- log q(z|x)
             lpz = self.prior.log_prob(z).sum(1)
             lpxz = x_dist.log_prob(true_x).sum(1) # equivalent to BCE(x_dist.logits, true_x)
