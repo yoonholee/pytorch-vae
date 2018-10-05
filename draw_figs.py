@@ -69,3 +69,5 @@ def draw_figs(model, args, test_loader, epoch):
         images = [imageio.imread(str(file)) for file in sorted(files)]
         imageio.mimsave('{}/latent.gif'.format(args.figs_dir), images)
 
+    plt.close('all')
+

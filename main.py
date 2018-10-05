@@ -4,41 +4,19 @@ import torch
 from torch import optim
 from tensorboardX import SummaryWriter
 
+from config import get_args
 from data_loader import data_loaders
 from draw_figs import draw_figs
-from vae import Vae
+from vae import VAE
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--gpu', type=str, default='0')
-parser.add_argument('--seed', type=int, default=42)
-parser.add_argument('--log_interval', type=int, default=100)
-parser.add_argument('--eval', type=bool, default=False)
-
-parser.add_argument('--dataset', type=str, default='mnist')
-parser.add_argument('--learning_rate', type=float, default=1e-3)
-parser.add_argument('--batch_size', type=int, default=128) # iwae uses 20
-parser.add_argument('--epochs', type=int, default=3280)
-
-parser.add_argument('--h_dim', type=int, default=200)
-parser.add_argument('--z_dim', type=int, default=50)
-parser.add_argument('--beta', type=float, default=1)
-args = parser.parse_args()
-if args.dataset == 'mnist':
-    args.x_dim = 784
-os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
+args = get_args()
 args.cuda = torch.cuda.is_available()
+os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = torch.device("cuda:0" if args.cuda else "cpu")
 train_loader, test_loader = data_loaders(args)
 torch.manual_seed(args.seed)
 if args.cuda: torch.cuda.manual_seed_all(args.seed)
-args.exp_name = 'h{}_z{}_lr{}_beta{}'.format(args.h_dim, args.z_dim, args.learning_rate, args.beta)
-args.figs_dir = 'figs/{}'.format(args.exp_name)
-args.out_dir = 'result/{}'.format(args.exp_name)
-if not os.path.exists(args.out_dir):
-    os.makedirs(args.out_dir)
 writer = SummaryWriter(args.out_dir)
-if not os.path.exists(args.figs_dir):
-    os.makedirs(args.figs_dir)
 
 def train(epoch):
     global train_step
@@ -64,7 +42,8 @@ def test(epoch):
         elbo_sum += elbo.item() * len(data)
     return loss_sum / len(test_loader.dataset), elbo_sum / len(test_loader.dataset)
 
-model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim, beta=args.beta).to(device)
+model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
+            beta=args.beta, analytic_kl=args.analytic_kl).to(device)
 if args.eval:
     model.load_state_dict(torch.load(args.out_dir+'/best_model.pt'))
     raise NotImplementedError
@@ -78,7 +57,6 @@ for epoch in range(1, args.epochs + 1):
     with torch.no_grad():
         if epoch % 10 == 1:
             draw_figs(model, args, test_loader, epoch)
-            plt.close('all')
         test_loss, test_elbo = test(epoch)
         scheduler.step(test_loss)
         print('==== Test loss: {:.4f} elbo: {:.4f} current lr: {} ====\n'.format(
