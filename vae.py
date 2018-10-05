@@ -20,6 +20,11 @@ class VAE(nn.Module):
             nn.Linear(h_dim, x_dim)) # using Bern(logit) is equivalent to putting sigmoid here.
         self.prior = Normal(torch.zeros([z_dim]).to(device),
                             torch.ones([z_dim]).to(device))
+        def init(m):
+            if type(m) == nn.Linear:
+                torch.nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
+                m.bias.data.fill_(.01)
+        self.apply(init)
 
     def encode(self, x):
         x = self.proc_data(x)
@@ -53,7 +58,11 @@ class VAE(nn.Module):
 
         elbo = -kl + lpxz
         loss = self.beta * kl - lpxz #betaVAE. for original VAE simply set beta=1
-        return loss.mean(), elbo.mean()
+        return loss, elbo
+
+    def iwae_loss(self, elbos):
+        # IWAE: log 1/k (w_1+...+w_k) = log(w_1+...+w_k) - log(k)
+        return -torch.logsumexp(torch.stack(elbos), 0)
 
     def sample(self, num_samples=64):
         z = self.prior.sample((num_samples,))

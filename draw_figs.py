@@ -6,6 +6,11 @@ import pathlib
 import numpy as np
 import torch
 
+def draw_gif(name, figs_dir, glob_str):
+    files = [file for file in pathlib.Path(figs_dir).glob(glob_str)]
+    images = [imageio.imread(str(file)) for file in sorted(files)]
+    imageio.mimsave('{}/{}'.format(figs_dir, name), images, duration=.5)
+
 def draw_figs(model, args, test_loader, epoch):
     samples = model.sample(num_samples=100).view(-1, 28, 28).data.cpu().numpy()
     plt.figure(figsize=(5, 5))
@@ -18,10 +23,7 @@ def draw_figs(model, args, test_loader, epoch):
         plt.axis('off')
     plt.savefig('figs/{}/samples_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
-
-    files = [file for file in pathlib.Path(args.figs_dir).glob('samples_*.jpg')]
-    images = [imageio.imread(str(file)) for file in sorted(files)]
-    imageio.mimsave('{}/samples.gif'.format(args.figs_dir), images)
+    draw_gif('samples.gif', args.figs_dir, 'samples*.jpg')
 
     for batch_idx, (data, _) in enumerate(test_loader):
         break
@@ -43,10 +45,7 @@ def draw_figs(model, args, test_loader, epoch):
         plt.axis('off')
     plt.savefig('figs/{}/reconstruction_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
-
-    files = [file for file in pathlib.Path(args.figs_dir).glob('reconstruction_*.jpg')]
-    images = [imageio.imread(str(file)) for file in sorted(files)]
-    imageio.mimsave('{}/reconstruction.gif'.format(args.figs_dir), images)
+    draw_gif('reconstruction.gif', args.figs_dir, 'reconstruction*.jpg')
 
     if args.z_dim == 2:
         latent_space, labels = [], []
@@ -64,10 +63,7 @@ def draw_figs(model, args, test_loader, epoch):
         plt.legend(frameon=True)
         plt.savefig('figs/{}/latent_{:04}.jpg'.format(args.exp_name, epoch))
         plt.clf()
-
-        files = [file for file in pathlib.Path(args.figs_dir).glob('latent*.jpg')]
-        images = [imageio.imread(str(file)) for file in sorted(files)]
-        imageio.mimsave('{}/latent.gif'.format(args.figs_dir), images)
+        draw_gif('latent.gif', args.figs_dir, 'latent*.jpg')
 
     plt.close('all')
 

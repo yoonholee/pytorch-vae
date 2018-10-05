@@ -6,10 +6,11 @@ from tensorboardX import SummaryWriter
 
 from config import get_args
 from data_loader import data_loaders
-from draw_figs import draw_figs
 from vae import VAE
 
 args = get_args()
+if args.figs:
+    from draw_figs import draw_figs
 args.cuda = torch.cuda.is_available()
 os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
 device = torch.device("cuda:0" if args.cuda else "cpu")
@@ -23,8 +24,18 @@ def train(epoch):
     for batch_idx, (data, _) in enumerate(train_loader):
         train_step += 1
         optimizer.zero_grad()
-        outs = model(data)
-        loss, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+        if args.importance_num == 1: # vae
+            outs = model(data)
+            loss, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+        else:
+            elbos = []
+            for k in range(args.importance_num):
+                outs = model(data)
+                _, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+                elbos.append(elbo)
+            loss = model.iwae_loss(elbos)
+            elbo = torch.stack(elbos)
+        loss, elbo = loss.mean(), elbo.mean()
         loss.backward()
         writer.add_scalar('train/loss', loss.item(), train_step)
         writer.add_scalar('train/elbo', elbo.item(), train_step)
@@ -38,6 +49,7 @@ def test(epoch):
     for batch_idx, (data, _) in enumerate(test_loader):
         outs = model(data)
         loss, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+        loss, elbo = loss.mean(), elbo.mean()
         loss_sum += loss.item() * len(data)
         elbo_sum += elbo.item() * len(data)
     return loss_sum / len(test_loader.dataset), elbo_sum / len(test_loader.dataset)
@@ -55,7 +67,7 @@ least_loss = float('inf')
 for epoch in range(1, args.epochs + 1):
     train(epoch)
     with torch.no_grad():
-        if epoch % 10 == 1:
+        if args.figs and epoch % 10 == 1:
             draw_figs(model, args, test_loader, epoch)
         test_loss, test_elbo = test(epoch)
         scheduler.step(test_loss)
