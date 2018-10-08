@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 from torch.distributions.normal import Normal
@@ -60,9 +61,9 @@ class VAE(nn.Module):
         loss = self.beta * kl - lpxz #betaVAE. for original VAE simply set beta=1
         return loss, elbo
 
-    def iwae_loss(self, elbos):
+    def iwae_bound(self, elbos):
         # IWAE: log 1/k (w_1+...+w_k) = log(w_1+...+w_k) - log(k)
-        return -torch.logsumexp(torch.stack(elbos), 0)
+        return torch.logsumexp(torch.stack(elbos), 0) - np.log(len(elbos))
 
     def sample(self, num_samples=64):
         z = self.prior.sample((num_samples,))
