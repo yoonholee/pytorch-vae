@@ -1,5 +1,6 @@
 import os
 import argparse
+import scipy.special
 import torch
 from torch import optim
 from tensorboardX import SummaryWriter
@@ -24,7 +25,7 @@ def train(epoch):
     for batch_idx, (data, _) in enumerate(train_loader):
         train_step += 1
         optimizer.zero_grad()
-        if args.importance_num == 1: # vae
+        if args.importance_num == 1: # VAE.
             outs = model(data)
             loss, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
         else:
@@ -44,18 +45,19 @@ def train(epoch):
             print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
                 epoch, 100. * batch_idx / len(train_loader), loss.item()))
 
-def test(epoch, k):
+def test(epoch):
     elbo_sum = 0
-    for batch_idx, (data, _) in enumerate(test_loader):
+    for _, (data, _) in enumerate(test_loader):
         elbos = []
-        for _ in range(k):
+        for _ in range(50): # calculate L_5000.
             outs = model(data)
             _, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
-            elbos.append(elbo)
-            import pdb; pdb.set_trace() # TODO: make this scale to k = 5000
-        elbo = model.iwae_bound(elbos)
-        elbo_sum += elbo.sum()
-    return elbo_sum / len(test_loader.dataset)
+            elbos.append(elbo.cpu().data.numpy())
+        elbo_iw = scipy.special.logsumexp(elbos, 0) - scipy.log(len(elbos))
+        elbo_sum += elbo_iw.sum()
+    elbo_mean = elbo_sum / len(test_loader.dataset)
+    print('==== elbo: {:.4f} current lr: {} ====\n'.format(elbo_mean, optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/elbo', elbo_mean, epoch)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, analytic_kl=args.analytic_kl).to(device)
@@ -65,18 +67,9 @@ train_step = 0
 learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
 for epoch in range(1, args.epochs + 1):
     optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
+    writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
     train(epoch)
-    import time
-    for i in range(100):
-        start = time.time()
-        print(2**i, test(epoch, 2**i))
-        print(time.time() - start)
     with torch.no_grad():
-        if args.figs and epoch % 10 == 1:
-            draw_figs(model, args, test_loader, epoch)
-        test_elbo = test(epoch)
-        print('==== elbo: {:.4f} current lr: {} ====\n'.format(
-            test_elbo, optimizer.param_groups[0]['lr']))
-        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-        writer.add_scalar('test/elbo', test_elbo, epoch)
+        if epoch % 10 == 1: test(epoch)
+        if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
 
