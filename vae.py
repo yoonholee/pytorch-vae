@@ -44,7 +44,7 @@ class VAE(nn.Module):
         x_dist = self.decode(z)
         return {'x_dist': x_dist, 'z': z, 'z_dist': z_dist}
 
-    def loss(self, true_x, z, x_dist, z_dist):
+    def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
         lpxz = x_dist.log_prob(true_x).sum(1) # equivalent to BCE(x_dist.logits, true_x)
 
@@ -58,8 +58,8 @@ class VAE(nn.Module):
             kl = -lpz + lqzx
 
         elbo = -kl + lpxz
-        loss = self.beta * kl - lpxz #betaVAE. for original VAE simply set beta=1
-        return loss, elbo
+        #loss = self.beta * kl - lpxz #betaVAE. for original VAE simply set beta=1
+        return elbo
 
     def iwae_bound(self, elbos):
         # IWAE: log 1/k (w_1+...+w_k) = log(w_1+...+w_k) - log(k)

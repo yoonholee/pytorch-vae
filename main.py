@@ -23,20 +23,21 @@ writer = SummaryWriter(args.out_dir)
 def train(epoch):
     global train_step
     for batch_idx, (data, _) in enumerate(train_loader):
-        train_step += 1
         optimizer.zero_grad()
-        if args.importance_num == 1: # VAE.
-            outs = model(data)
-            loss, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
-        else:
-            elbos = []
+
+        elbos_outer = []
+        for _ in range(args.mean_num):
+            elbos_inner = []
             for _ in range(args.importance_num):
                 outs = model(data)
-                _, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
-                elbos.append(elbo)
-            elbo = model.iwae_bound(elbos)
-            loss = -elbo
-        loss, elbo = loss.mean(), elbo.mean()
+                elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+                elbos_inner.append(elbo)
+            elbos_outer.append(model.iwae_bound(elbos_inner))
+        elbo = torch.stack(elbos_outer)
+        elbo = elbo.mean()
+        loss = -elbo
+
+        train_step += 1
         writer.add_scalar('train/loss', loss.item(), train_step)
         writer.add_scalar('train/elbo', elbo.item(), train_step)
         loss.backward()
@@ -51,7 +52,7 @@ def test(epoch):
         elbos = []
         for _ in range(50): # calculate L_5000.
             outs = model(data)
-            _, elbo = model.loss(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
+            elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
             elbos.append(elbo.cpu().data.numpy())
         elbo_iw = scipy.special.logsumexp(elbos, 0) - scipy.log(len(elbos))
         elbo_sum += elbo_iw.sum()
