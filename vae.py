@@ -38,7 +38,12 @@ class VAE(nn.Module):
         x = self.decoder(z)
         return Bernoulli(logits=x)
 
-    def forward(self, true_x):
+    def sample(self, num_samples=64):
+        z = self.prior.sample((num_samples,))
+        sample = self.decode(z).probs
+        return sample.view(num_samples, 1, 28, 28)
+
+    def forward_pass(self, true_x):
         z_dist = self.encode(true_x)
         z = z_dist.rsample()
         x_dist = self.decode(z)
@@ -46,27 +51,23 @@ class VAE(nn.Module):
 
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
-        lpxz = x_dist.log_prob(true_x).sum(1) # equivalent to BCE(x_dist.logits, true_x)
+        lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
 
-        if self.analytic_kl:
-            # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
-            kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(1)
-        else:
-            # SGVB^A: log p(z) - log q(z|x) + log p(x|z)
-            lpz = self.prior.log_prob(z).sum(1)
-            lqzx = z_dist.log_prob(z).sum(1)
+        if self.analytic_kl: # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
+            kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(-1)
+        else: # SGVB^A: log p(z) - log q(z|x) + log p(x|z)
+            lpz = self.prior.log_prob(z).sum(-1)
+            lqzx = z_dist.log_prob(z).sum(-1)
             kl = -lpz + lqzx
+        return -kl + lpxz
 
-        elbo = -kl + lpxz
-        #loss = self.beta * kl - lpxz #betaVAE. for original VAE simply set beta=1
+    def forward(self, true_x, mean_n, imp_n):
+        z_dist = self.encode(true_x)
+        z = z_dist.rsample(torch.Size([mean_n, imp_n])) # mean_n, imp_n, batch_size, z_dim
+        x_dist = self.decode(z)
+
+        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size, x_dim
+        elbo = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size, z_dim
+        elbo = torch.mean(elbo, 0) # batch_size, z_dim
         return elbo
-
-    def iwae_bound(self, elbos):
-        # IWAE: log 1/k (w_1+...+w_k) = log(w_1+...+w_k) - log(k)
-        return torch.logsumexp(torch.stack(elbos), 0) - np.log(len(elbos))
-
-    def sample(self, num_samples=64):
-        z = self.prior.sample((num_samples,))
-        sample = self.decode(z).probs
-        return sample.view(num_samples, 1, 28, 28)
 

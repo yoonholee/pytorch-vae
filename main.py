@@ -26,14 +26,7 @@ def train(epoch):
         optimizer.zero_grad()
 
         elbos_outer = []
-        for _ in range(args.mean_num):
-            elbos_inner = []
-            for _ in range(args.importance_num):
-                outs = model(data)
-                elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
-                elbos_inner.append(elbo)
-            elbos_outer.append(model.iwae_bound(elbos_inner))
-        elbo = torch.stack(elbos_outer)
+        elbo = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
         elbo = elbo.mean()
         loss = -elbo
 
@@ -50,15 +43,15 @@ def test(epoch):
     elbo_sum = 0
     for _, (data, _) in enumerate(test_loader):
         elbos = []
-        for _ in range(50): # calculate L_5000.
-            outs = model(data)
+        for _ in range(50):
+            outs = model.forward_pass(data)
             elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
             elbos.append(elbo.cpu().data.numpy())
         elbo_iw = scipy.special.logsumexp(elbos, 0) - scipy.log(len(elbos))
         elbo_sum += elbo_iw.sum()
     elbo_mean = elbo_sum / len(test_loader.dataset)
-    print('==== elbo: {:.4f} current lr: {} ====\n'.format(elbo_mean, optimizer.param_groups[0]['lr']))
-    writer.add_scalar('test/elbo', elbo_mean, epoch)
+    print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(elbo_mean, optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/LL', elbo_mean, epoch)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, analytic_kl=args.analytic_kl).to(device)
