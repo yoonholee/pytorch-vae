@@ -5,17 +5,18 @@ import os
 import numpy as np
 from PIL import Image
 import urllib.request
+import h5py
 
-class binaryMNIST(data.Dataset):
+class binaryMNIST(data.Dataset): #TODO: make loading faster by combining and reshaping during download. maybe in int format?
     """ Binarized MNIST dataset, proposed in
     http://proceedings.mlr.press/v15/larochelle11a/larochelle11a.pdf """
     train_file = 'binarized_mnist_train.amat'
-    test_file = 'binarized_mnist_test.amat'
     val_file = 'binarized_mnist_valid.amat'
+    test_file = 'binarized_mnist_test.amat'
 
     def __init__(self, root, train=True, transform=None, download=False):
+        # we ignore transform.
         self.root = os.path.expanduser(root)
-        self.transform = transform
         self.train = train  # training set or test set
 
         if download: self.download()
@@ -26,26 +27,18 @@ class binaryMNIST(data.Dataset):
 
     def __getitem__(self, index):
         img = self.data[index]
-        img = Image.fromarray(img, mode='F')
-        if self.transform is not None:
-            img = self.transform(img)
+        img = Image.fromarray(img)
+        img = transforms.ToTensor()(img).type(torch.FloatTensor)
         return img, torch.tensor(-1) # Meaningless tensor instead of target
 
     def __len__(self):
         return len(self.data)
 
     def _get_data(self, train=True):
-        def filename_to_np(filename):
-            with open(filename) as f:
-                lines = f.readlines()
-            return np.array([[int(i)for i in line.split()] for line in lines]).astype('float32')
-
-        if train:
-            data = np.concatenate([filename_to_np(os.path.join(self.root, self.train_file)),
-                                        filename_to_np(os.path.join(self.root, self.val_file))])
-        else:
-            data = filename_to_np(os.path.join(self.root, self.val_file))
-        return data.reshape(-1, 28, 28)
+        with h5py.File(os.path.join(self.root, 'data.h5'), 'r') as hf:
+            data = hf.get('train' if train else 'test')
+            data = np.array(data)
+        return data
 
     def download(self):
         if self._check_exists():
@@ -61,10 +54,22 @@ class binaryMNIST(data.Dataset):
             local_filename = os.path.join(self.root, filename)
             urllib.request.urlretrieve(url, local_filename)
             print('Saved to {}'.format(local_filename))
+
+        def filename_to_np(filename):
+            with open(filename) as f:
+                lines = f.readlines()
+            return np.array([[int(i)for i in line.split()] for line in lines]).astype('int8')
+
+        train_data = np.concatenate([filename_to_np(os.path.join(self.root, self.train_file)),
+                                        filename_to_np(os.path.join(self.root, self.val_file))])
+        test_data = filename_to_np(os.path.join(self.root, self.val_file))
+        with h5py.File(os.path.join(self.root, 'data.h5'), 'w') as hf:
+            hf.create_dataset('train', data=train_data.reshape(-1, 28, 28))
+            hf.create_dataset('test', data=test_data.reshape(-1, 28, 28))
         print('Done!')
 
     def _check_exists(self):
-        return os.path.exists(os.path.join(self.root, self.train_file))
+        return os.path.exists(os.path.join(self.root, 'data.h5'))
 
 def data_loaders(args):
     if args.dataset == 'binarymnist':
@@ -74,7 +79,7 @@ def data_loaders(args):
     elif args.dataset == 'fashionmnist':
         loader_fn, root = datasets.FashionMNIST, './dataset/fashionmnist'
 
-    kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+    kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     train_loader = torch.utils.data.DataLoader(
         loader_fn(root, train=True, download=True, transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True, **kwargs)
