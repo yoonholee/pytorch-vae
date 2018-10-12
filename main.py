@@ -1,6 +1,7 @@
 import os
 import argparse
 import scipy.special
+import numpy as np
 import torch
 from torch import optim
 from tensorboardX import SummaryWriter
@@ -24,30 +25,28 @@ def train(epoch):
     global train_step
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
-
-        elbos_outer = []
         elbo = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
         elbo = elbo.mean()
         loss = -elbo
 
         train_step += 1
-        writer.add_scalar('train/loss', loss.item(), train_step)
-        writer.add_scalar('train/elbo', elbo.item(), train_step)
         loss.backward()
         optimizer.step()
         if train_step % args.log_interval == 0:
             print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
                 epoch, 100. * batch_idx / len(train_loader), loss.item()))
+            writer.add_scalar('train/loss', loss.item(), train_step)
+            writer.add_scalar('train/elbo', elbo.item(), train_step)
 
 def test(epoch):
     elbo_sum = 0
     for _, (data, _) in enumerate(test_loader):
         elbos = []
-        for _ in range(50):
+        for _ in range(5000):
             outs = model.forward_pass(data)
             elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
             elbos.append(elbo.cpu().data.numpy())
-        elbo_iw = scipy.special.logsumexp(elbos, 0) - scipy.log(len(elbos))
+        elbo_iw = scipy.special.logsumexp(elbos, 0) - np.log(len(elbos))
         elbo_sum += elbo_iw.sum()
     elbo_mean = elbo_sum / len(test_loader.dataset)
     print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(elbo_mean, optimizer.param_groups[0]['lr']))

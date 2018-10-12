@@ -53,9 +53,11 @@ class VAE(nn.Module):
         true_x = self.proc_data(true_x)
         lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
 
-        if self.analytic_kl: # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
+        if self.analytic_kl:
+            # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
             kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(-1)
-        else: # SGVB^A: log p(z) - log q(z|x) + log p(x|z)
+        else:
+            # SGVB^A: log p(z) - log q(z|x) + log p(x|z)
             lpz = self.prior.log_prob(z).sum(-1)
             lqzx = z_dist.log_prob(z).sum(-1)
             kl = -lpz + lqzx
@@ -67,7 +69,7 @@ class VAE(nn.Module):
         x_dist = self.decode(z)
 
         elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size, x_dim
-        elbo = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size, z_dim
-        elbo = torch.mean(elbo, 0) # batch_size, z_dim
+        elbo = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size, x_dim
+        elbo = torch.mean(elbo, 0) # batch_size, x_dim
         return elbo
 
