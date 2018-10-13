@@ -6,8 +6,58 @@ import numpy as np
 from PIL import Image
 import urllib.request
 import h5py
+import scipy.io
 
-class binaryMNIST(data.Dataset): #TODO: make loading faster by combining and reshaping during download. maybe in int format?
+class omniglot(data.Dataset):
+    """ omniglot dataset """
+    url = 'https://github.com/yburda/iwae/raw/master/datasets/OMNIGLOT/chardata.mat'
+
+    def __init__(self, root, train=True, transform=None, download=False):
+        # we ignore transform.
+        self.root = os.path.expanduser(root)
+        self.train = train  # training set or test set
+
+        if download: self.download()
+        if not self._check_exists():
+            raise RuntimeError('Dataset not found. You can use download=True to download it')
+
+        self.data = self._get_data(train=train)
+
+    def __getitem__(self, index):
+        img = self.data[index].reshape(28, 28)
+        img = Image.fromarray(img)
+        img = transforms.ToTensor()(img).type(torch.FloatTensor)
+        img = torch.bernoulli(img) # stochastically binarize
+        return img, torch.tensor(-1) # Meaningless tensor instead of target
+
+    def __len__(self):
+        return len(self.data)
+
+    def _get_data(self, train=True):
+        def reshape_data(data):
+            return data.reshape((-1, 28, 28)).reshape((-1, 28*28), order='fortran')
+
+        omni_raw = scipy.io.loadmat(os.path.join(self.root, 'chardata.mat'))
+        data_str = 'data' if train else 'testdata'
+        data = reshape_data(omni_raw[data_str].T.astype('float32'))
+        return data
+
+    def download(self):
+        if self._check_exists():
+            return
+        if not os.path.exists(self.root):
+            os.makedirs(self.root)
+
+        print('Downloading from {}...'.format(self.url))
+        local_filename = os.path.join(self.root, 'chardata.mat')
+        urllib.request.urlretrieve(self.url, local_filename)
+        print('Saved to {}'.format(local_filename))
+
+    def _check_exists(self):
+        return os.path.exists(os.path.join(self.root, 'chardata.mat'))
+
+
+class binaryMNIST(data.Dataset):
     """ Binarized MNIST dataset, proposed in
     http://proceedings.mlr.press/v15/larochelle11a/larochelle11a.pdf """
     train_file = 'binarized_mnist_train.amat'
@@ -72,9 +122,11 @@ class binaryMNIST(data.Dataset): #TODO: make loading faster by combining and res
         return os.path.exists(os.path.join(self.root, 'data.h5'))
 
 def data_loaders(args):
-    if args.dataset == 'binarymnist':
+    if args.dataset == 'omniglot':
+        loader_fn, root = omniglot, './dataset/omniglot'
+    elif args.dataset == 'fixedbinarymnist':
         loader_fn, root = binaryMNIST, './dataset/binarymnist'
-    if args.dataset == 'mnist':
+    elif args.dataset == 'mnist':
         loader_fn, root = datasets.MNIST, './dataset/mnist'
     elif args.dataset == 'fashionmnist':
         loader_fn, root = datasets.FashionMNIST, './dataset/fashionmnist'
