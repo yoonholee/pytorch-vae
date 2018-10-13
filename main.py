@@ -39,18 +39,24 @@ def train(epoch):
             writer.add_scalar('train/elbo', elbo.item(), train_step)
 
 def test(epoch):
-    elbo_sum = 0
+    loss_1_sum = loss_64_sum = ll_sum = 0
     for _, (data, _) in enumerate(test_loader):
         elbos = []
         for _ in range(5000):
             outs = model.forward_pass(data)
             elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
             elbos.append(elbo.cpu().data.numpy())
-        elbo_iw = scipy.special.logsumexp(elbos, 0) - np.log(len(elbos))
-        elbo_sum += elbo_iw.sum()
-    elbo_mean = elbo_sum / len(test_loader.dataset)
-    print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(elbo_mean, optimizer.param_groups[0]['lr']))
-    writer.add_scalar('test/LL', elbo_mean, epoch)
+        loss_1 = np.mean(elbos, 0)
+        loss_64 = scipy.special.logsumexp(elbos[:64], 0) - np.log(64)
+        ll = scipy.special.logsumexp(elbos, 0) - np.log(len(elbos))
+        loss_1_sum += loss_1.sum()
+        loss_64_sum += loss_64.sum()
+        ll_sum += ll.sum()
+    print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(
+        ll_sum / len(test_loader.dataset), optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/Loss_1', loss_1_sum / len(test_loader.dataset), epoch)
+    writer.add_scalar('test/Loss_64', loss_64_sum / len(test_loader.dataset), epoch)
+    writer.add_scalar('test/LL', ll_sum / len(test_loader.dataset), epoch)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, analytic_kl=args.analytic_kl).to(device)
