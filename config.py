@@ -2,14 +2,14 @@ import os
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--gpu', type=int, default=0)
+parser.add_argument('--gpu', type=int, default=7)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--log_interval', type=int, default=500)
 parser.add_argument('--figs', action='store_true')
 
 parser.add_argument('--dataset', type=str, default='omniglot')
 parser.add_argument('--batch_size', type=int, default=20) # iwae uses 20
-parser.add_argument('--test_batch_size', type=int, default=1024)
+parser.add_argument('--test_batch_size', type=int, default=64)
 parser.add_argument('--mean_num', type=int, default=1) # M in "tighter variational bounds...". Use 1 for vanilla vae
 parser.add_argument('--importance_num', type=int, default=1) # k of iwae. Use 1 for vanilla vae
 parser.add_argument('--epochs', type=int, default=100000) # iwae uses 3280
@@ -41,7 +41,7 @@ def get_args():
     if not os.path.exists(args.figs_dir):
         os.makedirs(args.figs_dir)
 
-    if args.dataset in ['fixedbinarymnist', 'mnist', 'omniglot']:
+    if args.dataset in ['fixedmnist', 'stochmnist', 'omniglot']:
         args.x_dim = 784
     return args
 

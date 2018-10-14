@@ -8,6 +8,19 @@ import urllib.request
 import h5py
 import scipy.io
 
+class stochMNIST(datasets.MNIST):
+    """ Gets a new stochastic binarization of MNIST at each call. """
+    def __getitem__(self, index):
+        if self.train:
+            img, target = self.train_data[index], self.train_labels[index]
+        else:
+            img, target = self.test_data[index], self.test_labels[index]
+
+        img = Image.fromarray(img.numpy(), mode='L')
+        img = transforms.ToTensor()(img)
+        img = torch.bernoulli(img) # stochastically binarize
+        return img, target
+
 class omniglot(data.Dataset):
     """ omniglot dataset """
     url = 'https://github.com/yburda/iwae/raw/master/datasets/OMNIGLOT/chardata.mat'
@@ -57,7 +70,7 @@ class omniglot(data.Dataset):
         return os.path.exists(os.path.join(self.root, 'chardata.mat'))
 
 
-class binaryMNIST(data.Dataset):
+class fixedMNIST(data.Dataset):
     """ Binarized MNIST dataset, proposed in
     http://proceedings.mlr.press/v15/larochelle11a/larochelle11a.pdf """
     train_file = 'binarized_mnist_train.amat'
@@ -124,19 +137,18 @@ class binaryMNIST(data.Dataset):
 def data_loaders(args):
     if args.dataset == 'omniglot':
         loader_fn, root = omniglot, './dataset/omniglot'
-    elif args.dataset == 'fixedbinarymnist':
-        loader_fn, root = binaryMNIST, './dataset/binarymnist'
-    elif args.dataset == 'mnist':
-        loader_fn, root = datasets.MNIST, './dataset/mnist'
-    elif args.dataset == 'fashionmnist':
-        loader_fn, root = datasets.FashionMNIST, './dataset/fashionmnist'
+    elif args.dataset == 'fixedmnist':
+        loader_fn, root = fixedMNIST, './dataset/fixedmnist'
+    elif args.dataset == 'stochmnist':
+        loader_fn, root = stochMNIST, './dataset/stochmnist'
 
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     train_loader = torch.utils.data.DataLoader(
         loader_fn(root, train=True, download=True, transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True, **kwargs)
+    # need test bs <=64 to make L_5000 tractable in one pass
     test_loader = torch.utils.data.DataLoader(
         loader_fn(root, train=False, download=True, transform=transforms.ToTensor()),
-        batch_size=args.test_batch_size, shuffle=False, **kwargs) # need high bs to calculate L_5000.
+        batch_size=args.test_batch_size, shuffle=False, **kwargs)
     return train_loader, test_loader
 
