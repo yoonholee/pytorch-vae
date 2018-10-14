@@ -43,12 +43,6 @@ class VAE(nn.Module):
         sample = self.decode(z).probs
         return sample.view(num_samples, 1, 28, 28)
 
-    def forward_pass(self, true_x):
-        z_dist = self.encode(true_x)
-        z = z_dist.rsample()
-        x_dist = self.decode(z)
-        return {'x_dist': x_dist, 'z': z, 'z_dist': z_dist}
-
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
         lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
@@ -68,8 +62,8 @@ class VAE(nn.Module):
         z = z_dist.rsample(torch.Size([mean_n, imp_n])) # mean_n, imp_n, batch_size, z_dim
         x_dist = self.decode(z)
 
-        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size, x_dim
-        elbo = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size, x_dim
-        elbo = torch.mean(elbo, 0) # batch_size, x_dim
-        return elbo
+        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
+        elbo_iwae = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size
+        elbo_iwae_m = torch.mean(elbo_iwae, 0) # batch_size
+        return {'elbo': elbo, 'loss': -elbo_iwae_m}
 

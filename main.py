@@ -21,13 +21,17 @@ torch.manual_seed(args.seed)
 if args.cuda: torch.cuda.manual_seed_all(args.seed)
 writer = SummaryWriter(args.out_dir)
 
+def loss_from_elbos(elbos, n):
+    if n == -1: n = len(elbos)
+    return elbos.mean() if n == 1 else \
+            scipy.special.logsumexp(elbos[:n], 0) - np.log(n)
+
 def train(epoch):
     global train_step
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
-        elbo = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
-        elbo = elbo.mean()
-        loss = -elbo
+        outs = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
+        elbo, loss = outs['elbo'].cpu().data.numpy(), outs['loss'].mean()
 
         train_step += 1
         loss.backward()
@@ -36,27 +40,17 @@ def train(epoch):
             print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
                 epoch, 100. * batch_idx / len(train_loader), loss.item()))
             writer.add_scalar('train/loss', loss.item(), train_step)
-            writer.add_scalar('train/elbo', elbo.item(), train_step)
+            writer.add_scalar('train/loss_1', loss_from_elbos(elbo, 1), train_step)
 
 def test(epoch):
-    loss_1_sum = loss_64_sum = ll_sum = 0
-    for _, (data, _) in enumerate(test_loader):
-        elbos = []
-        for _ in range(5000):
-            outs = model.forward_pass(data)
-            elbo = model.elbo(true_x=data, z=outs['z'], x_dist=outs['x_dist'], z_dist=outs['z_dist'])
-            elbos.append(elbo.cpu().data.numpy())
-        loss_1 = np.mean(elbos, 0)
-        loss_64 = scipy.special.logsumexp(elbos[:64], 0) - np.log(64)
-        ll = scipy.special.logsumexp(elbos, 0) - np.log(len(elbos))
-        loss_1_sum += loss_1.sum()
-        loss_64_sum += loss_64.sum()
-        ll_sum += ll.sum()
+    elbo = [model(data, mean_n=1, imp_n=5000)['elbo'].cpu().data.numpy()
+            for data, _ in test_loader]
+    elbo = np.concatenate(elbo, -1).squeeze(0)
     print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(
-        ll_sum / len(test_loader.dataset), optimizer.param_groups[0]['lr']))
-    writer.add_scalar('test/Loss_1', loss_1_sum / len(test_loader.dataset), epoch)
-    writer.add_scalar('test/Loss_64', loss_64_sum / len(test_loader.dataset), epoch)
-    writer.add_scalar('test/LL', ll_sum / len(test_loader.dataset), epoch)
+        loss_from_elbos(elbo, -1).mean(), optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/loss_1', loss_from_elbos(elbo, 1).mean(), epoch)
+    writer.add_scalar('test/loss_64', loss_from_elbos(elbo, 64).mean(), epoch)
+    writer.add_scalar('test/LL', loss_from_elbos(elbo, -1).mean(), epoch)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, analytic_kl=args.analytic_kl).to(device)
