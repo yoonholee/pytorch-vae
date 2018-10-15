@@ -5,8 +5,6 @@ import os
 import numpy as np
 from PIL import Image
 import urllib.request
-import h5py
-import scipy.io
 
 class stochMNIST(datasets.MNIST):
     """ Gets a new stochastic binarization of MNIST at each call. """
@@ -47,6 +45,7 @@ class omniglot(data.Dataset):
         return len(self.data)
 
     def _get_data(self, train=True):
+        import scipy.io
         def reshape_data(data):
             return data.reshape((-1, 28, 28)).reshape((-1, 28*28), order='fortran')
 
@@ -98,12 +97,14 @@ class fixedMNIST(data.Dataset):
         return len(self.data)
 
     def _get_data(self, train=True):
+        import h5py
         with h5py.File(os.path.join(self.root, 'data.h5'), 'r') as hf:
             data = hf.get('train' if train else 'test')
             data = np.array(data)
         return data
 
     def download(self):
+        import h5py
         if self._check_exists():
             return
         if not os.path.exists(self.root):
@@ -142,12 +143,12 @@ def data_loaders(args):
     elif args.dataset == 'stochmnist':
         loader_fn, root = stochMNIST, './dataset/stochmnist'
 
+    if args.dataset_dir != '': root = args.dataset_dir
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
     train_loader = torch.utils.data.DataLoader(
         loader_fn(root, train=True, download=True, transform=transforms.ToTensor()),
         batch_size=args.batch_size, shuffle=True, **kwargs)
-    # need test bs <=64 to make L_5000 tractable in one pass
-    test_loader = torch.utils.data.DataLoader(
+    test_loader = torch.utils.data.DataLoader( # need test bs <=64 to make L_5000 tractable in one pass
         loader_fn(root, train=False, download=True, transform=transforms.ToTensor()),
         batch_size=args.test_batch_size, shuffle=False, **kwargs)
     return train_loader, test_loader

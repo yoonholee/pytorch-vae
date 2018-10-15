@@ -1,6 +1,5 @@
 import os
 import argparse
-import scipy.special
 import numpy as np
 import torch
 from torch import optim
@@ -21,17 +20,12 @@ torch.manual_seed(args.seed)
 if args.cuda: torch.cuda.manual_seed_all(args.seed)
 writer = SummaryWriter(args.out_dir)
 
-def loss_from_elbos(elbos, n):
-    if n == -1: n = len(elbos)
-    return elbos.mean() if n == 1 else \
-            scipy.special.logsumexp(elbos[:n], 0) - np.log(n)
-
 def train(epoch):
     global train_step
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
         outs = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
-        elbo, loss = outs['elbo'].cpu().data.numpy(), outs['loss'].mean()
+        loss_1, loss = outs['elbo'].cpu().data.numpy().mean(), outs['loss'].mean()
 
         train_step += 1
         loss.backward()
@@ -40,29 +34,36 @@ def train(epoch):
             print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
                 epoch, 100. * batch_idx / len(train_loader), loss.item()))
             writer.add_scalar('train/loss', loss.item(), train_step)
-            writer.add_scalar('train/loss_1', loss_from_elbos(elbo, 1), train_step)
+            writer.add_scalar('train/loss_1', loss_1, train_step)
 
 def test(epoch):
-    elbo = [model(data, mean_n=1, imp_n=5000)['elbo'].cpu().data.numpy()
-            for data, _ in test_loader]
-    elbo = np.concatenate(elbo, -1).squeeze(0)
+    elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
+
+    def get_loss_k(elbos, k):
+        losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy() for elbo in elbos]
+        return np.concatenate(losses).mean()
+    #TODO: get_loss_k calls redundant here. clean.
     print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(
-        loss_from_elbos(elbo, -1).mean(), optimizer.param_groups[0]['lr']))
-    writer.add_scalar('test/loss_1', loss_from_elbos(elbo, 1).mean(), epoch)
-    writer.add_scalar('test/loss_64', loss_from_elbos(elbo, 64).mean(), epoch)
-    writer.add_scalar('test/LL', loss_from_elbos(elbo, -1).mean(), epoch)
+        get_loss_k(elbos, -1), optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/loss_1', get_loss_k(elbos, 1), epoch)
+    writer.add_scalar('test/loss_64', get_loss_k(elbos, 64), epoch)
+    writer.add_scalar('test/LL', get_loss_k(elbos, -1), epoch)
+    return get_loss_k(elbos, -1)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
-            beta=args.beta, analytic_kl=args.analytic_kl).to(device)
+            beta=args.beta, no_analytic_kl=args.no_analytic_kl).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=10**-7)
 
 train_step = 0
-learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
-for epoch in range(1, args.epochs + 1):
-    optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
+#learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
+#for epoch in range(1, len(learning_rates)+1): # TODO: get from args here
+    #optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
+for epoch in range(1, args.epochs):
     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
     train(epoch)
     with torch.no_grad():
-        if epoch % 10 == 1: test(epoch)
+        log_likelihood = test(epoch)
+        scheduler.step(log_likelihood)
         if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
 

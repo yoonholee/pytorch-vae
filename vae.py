@@ -5,11 +5,11 @@ from torch.distributions.normal import Normal
 from torch.distributions.bernoulli import Bernoulli
 
 class VAE(nn.Module):
-    def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl):
+    def __init__(self, device, x_dim, h_dim, z_dim, beta, no_analytic_kl):
         super(VAE, self).__init__()
         self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
         self.beta = beta
-        self.analytic_kl = analytic_kl
+        self.no_analytic_kl = no_analytic_kl
         self.encoder = nn.Sequential(
             nn.Linear(x_dim, h_dim), nn.Tanh(),
             nn.Linear(h_dim, h_dim), nn.Tanh())
@@ -47,23 +47,27 @@ class VAE(nn.Module):
         true_x = self.proc_data(true_x)
         lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
 
-        if self.analytic_kl:
-            # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
-            kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(-1)
-        else:
+        if self.no_analytic_kl:
             # SGVB^A: log p(z) - log q(z|x) + log p(x|z)
             lpz = self.prior.log_prob(z).sum(-1)
             lqzx = z_dist.log_prob(z).sum(-1)
             kl = -lpz + lqzx
+        else:
+            # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
+            kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(-1)
         return -kl + lpxz
+
+    def logmeanexp(self, inputs, dim=1):
+        input_max = inputs.max(dim)[0]
+        return (inputs - input_max).exp().mean(dim).log() + input_max
 
     def forward(self, true_x, mean_n, imp_n):
         z_dist = self.encode(true_x)
         z = z_dist.rsample(torch.Size([mean_n, imp_n])) # mean_n, imp_n, batch_size, z_dim
         x_dist = self.decode(z)
 
-        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
-        elbo_iwae = torch.logsumexp(elbo, 1) - np.log(imp_n) # mean_n, batch_size
+        elbo =  self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
+        elbo_iwae = self.logmeanexp(elbo, 1) # mean_n, batch_size
         elbo_iwae_m = torch.mean(elbo_iwae, 0) # batch_size
         return {'elbo': elbo, 'loss': -elbo_iwae_m}
 
