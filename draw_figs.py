@@ -27,9 +27,10 @@ def draw_figs(model, args, test_loader, epoch):
 
     for batch_idx, (data, _) in enumerate(test_loader):
         break
-    outs = model(data)
+    z_dist = model.encode(data)
+    z = z_dist.rsample()
+    recon = model.decode(z).probs.view(args.test_batch_size, 28, 28)
     data = data.view(args.test_batch_size, 28, 28)
-    recon = outs['x_dist'].probs.view(args.test_batch_size, 28, 28)
     plt.figure(figsize=(5, 5))
     plt.suptitle('Reconstruction, Epoch {}'.format(epoch), fontsize=20)
     plt.axis('square')

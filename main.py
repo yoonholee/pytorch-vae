@@ -25,7 +25,7 @@ def train(epoch):
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
         outs = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
-        loss_1, loss = outs['elbo'].cpu().data.numpy().mean(), outs['loss'].mean()
+        loss_1, loss = -outs['elbo'].cpu().data.numpy().mean(), outs['loss'].mean()
 
         train_step += 1
         loss.backward()
@@ -40,30 +40,31 @@ def test(epoch):
     elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
 
     def get_loss_k(elbos, k):
-        losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy() for elbo in elbos]
-        return np.concatenate(losses).mean()
+        losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
+        return -np.concatenate(losses).mean()
     #TODO: get_loss_k calls redundant here. clean.
     print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(
         get_loss_k(elbos, -1), optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/loss', get_loss_k(elbos, args.importance_num), epoch)
     writer.add_scalar('test/loss_1', get_loss_k(elbos, 1), epoch)
     writer.add_scalar('test/loss_64', get_loss_k(elbos, 64), epoch)
     writer.add_scalar('test/LL', get_loss_k(elbos, -1), epoch)
-    return get_loss_k(elbos, -1)
+    return get_loss_k(elbos, args.importance_num)
 
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, no_analytic_kl=args.no_analytic_kl).to(device)
-optimizer = optim.Adam(model.parameters(), lr=args.learning_rate)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='max', factor=10**-7)
+optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
+scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=10**(-1/7))
 
 train_step = 0
 #learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
-#for epoch in range(1, len(learning_rates)+1): # TODO: get from args here
+#for epoch in range(1, len(learning_rates)+1):
     #optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
 for epoch in range(1, args.epochs):
     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
     train(epoch)
     with torch.no_grad():
-        log_likelihood = test(epoch)
-        scheduler.step(log_likelihood)
+        test_loss = test(epoch)
+        scheduler.step(test_loss)
         if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
 

@@ -58,15 +58,18 @@ class VAE(nn.Module):
         return -kl + lpxz
 
     def logmeanexp(self, inputs, dim=1):
-        input_max = inputs.max(dim)[0]
-        return (inputs - input_max).exp().mean(dim).log() + input_max
+        if inputs.size(dim) == 1:
+            return inputs
+        else:
+            input_max = inputs.max(dim, keepdim=True)[0]
+            return (inputs - input_max).exp().mean(dim).log() + input_max
 
     def forward(self, true_x, mean_n, imp_n):
         z_dist = self.encode(true_x)
         z = z_dist.rsample(torch.Size([mean_n, imp_n])) # mean_n, imp_n, batch_size, z_dim
         x_dist = self.decode(z)
 
-        elbo =  self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
+        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
         elbo_iwae = self.logmeanexp(elbo, 1) # mean_n, batch_size
         elbo_iwae_m = torch.mean(elbo_iwae, 0) # batch_size
         return {'elbo': elbo, 'loss': -elbo_iwae_m}

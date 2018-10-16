@@ -142,6 +142,8 @@ def data_loaders(args):
         loader_fn, root = fixedMNIST, './dataset/fixedmnist'
     elif args.dataset == 'stochmnist':
         loader_fn, root = stochMNIST, './dataset/stochmnist'
+    elif args.dataset == 'fashionmnist':
+        loader_fn, root = fashionMNIST, './dataset/fashionmnist'
 
     if args.dataset_dir != '': root = args.dataset_dir
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
