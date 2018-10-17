@@ -51,20 +51,28 @@ def test(epoch):
     writer.add_scalar('test/LL', get_loss_k(elbos, -1), epoch)
     return get_loss_k(elbos, args.importance_num)
 
+mean_img = (train_loader.dataset.train_data.type(torch.float) / 255).mean(0).reshape(-1).numpy()
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
-            beta=args.beta, no_analytic_kl=args.no_analytic_kl).to(device)
+            beta=args.beta, analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=10**(-1/7))
 
 train_step = 0
-#learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
-#for epoch in range(1, len(learning_rates)+1):
-    #optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
-for epoch in range(1, args.epochs):
-    writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-    train(epoch)
-    with torch.no_grad():
-        test_loss = test(epoch)
-        scheduler.step(test_loss)
-        if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
+if args.iwae_lr:
+    learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
+    for epoch in range(1, len(learning_rates)+1):
+        optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
+        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+        train(epoch)
+        with torch.no_grad():
+            test_loss = test(epoch)
+            if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
+else:
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', cooldown=20, factor=10**(-1/7))
+    for epoch in range(1, args.epochs):
+        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+        train(epoch)
+        with torch.no_grad():
+            test_loss = test(epoch)
+            scheduler.step(test_loss)
+            if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
 

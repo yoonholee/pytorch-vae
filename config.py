@@ -16,8 +16,9 @@ parser.add_argument('--mean_num', type=int, default=1) # M in "tighter variation
 parser.add_argument('--importance_num', type=int, default=1) # k of iwae. Use 1 for vanilla vae
 parser.add_argument('--epochs', type=int, default=4000) # iwae uses 3280
 parser.add_argument('--learning_rate', type=float, default=1e-3)
+parser.add_argument('--iwae_lr', action='store_true')
 
-parser.add_argument('--no_analytic_kl', action='store_true')
+parser.add_argument('--analytic_kl', action='store_true')
 parser.add_argument('--h_dim', type=int, default=200)
 parser.add_argument('--z_dim', type=int, default=50)
 parser.add_argument('--beta', type=float, default=1)
@@ -33,7 +34,8 @@ def get_args():
     if args.z_dim != 50: args.exp_name += '_z{}'.format(args.z_dim)
     if args.learning_rate != 1e-3: args.exp_name += '_z{}'.format(args.learning_rate)
     if args.beta != 1: args.exp_name += '_beta{}'.format(args.beta)
-    if args.no_analytic_kl: args.exp_name += '_noanalytic'
+    if args.analytic_kl: args.exp_name += '_analytic'
+    if args.iwae_lr: args.exp_name += '_iwaelr'
 
     args.figs_dir = 'figs/{}'.format(args.exp_name)
     args.out_dir = 'result/{}'.format(args.exp_name)
