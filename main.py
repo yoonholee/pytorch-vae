@@ -7,7 +7,7 @@ from torch import optim
 from tensorboardX import SummaryWriter
 
 from config import get_args
-from data_loader import data_loaders
+from data_loader.data_loader import data_loaders
 from vae import VAE
 
 args = get_args()
