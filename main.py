@@ -39,40 +39,35 @@ def train(epoch):
 def test(epoch):
     elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
 
-    def get_loss_k(elbos, k):
+    def get_loss_k(k):
         losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
         return -np.concatenate(losses).mean()
-    #TODO: get_loss_k calls redundant here. clean.
-    print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(
-        get_loss_k(elbos, -1), optimizer.param_groups[0]['lr']))
-    writer.add_scalar('test/loss', get_loss_k(elbos, args.importance_num), epoch)
-    writer.add_scalar('test/loss_1', get_loss_k(elbos, 1), epoch)
-    writer.add_scalar('test/loss_64', get_loss_k(elbos, 64), epoch)
-    writer.add_scalar('test/LL', get_loss_k(elbos, -1), epoch)
-    return get_loss_k(elbos, args.importance_num)
+    test_loss, l_1, l_64, l_5000 = map(get_loss_k, [args.importance_num, 1, 64, 5000])
+
+    print('==== Testing. LL: {:.4f} current lr: {} ====\n'.format(l_5000, optimizer.param_groups[0]['lr']))
+    writer.add_scalar('test/loss', test_loss, epoch)
+    writer.add_scalar('test/loss_1', l_1, epoch)
+    writer.add_scalar('test/loss_64', l_64, epoch)
+    writer.add_scalar('test/LL', l_5000, epoch)
+    return test_loss
 
 mean_img = (train_loader.dataset.train_data.type(torch.float) / 255).mean(0).reshape(-1).numpy()
 model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
             beta=args.beta, analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
+if args.no_iwae_lr:
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=100, factor=10**(-1/7))
+else:
+    milestones = np.cumsum([3**i for i in range(8)])
+    scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=10**(-1/7))
 
 train_step = 0
-if args.iwae_lr:
-    learning_rates = [1e-3 * 10**-(j/7) for j in sum([[i] * 3**i for i in range(8)], [])]
-    for epoch in range(1, len(learning_rates)+1):
-        optimizer.param_groups[0]['lr'] = learning_rates[epoch - 1]
-        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-        train(epoch)
-        with torch.no_grad():
-            test_loss = test(epoch)
-            if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
-else:
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', cooldown=20, factor=10**(-1/7))
-    for epoch in range(1, args.epochs):
-        writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
-        train(epoch)
-        with torch.no_grad():
-            test_loss = test(epoch)
-            scheduler.step(test_loss)
-            if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
+for epoch in range(1, args.epochs):
+    writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
+    train(epoch)
+    with torch.no_grad():
+        test_loss = test(epoch)
+        scheduler_args = {'metrics': test_loss} if args.no_iwae_lr else {}
+        scheduler.step(*scheduler_args)
+        if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
 
