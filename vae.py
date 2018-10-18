@@ -7,6 +7,8 @@ from torch.distributions.bernoulli import Bernoulli
 class VAE(nn.Module):
     def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
         super(VAE, self).__init__()
+        self.train_step = 0
+        self.best_loss = np.inf
         self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
         self.beta = beta
         self.analytic_kl = analytic_kl

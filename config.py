@@ -5,6 +5,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--gpu', type=int, default=0)
 parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--log_interval', type=int, default=500)
+parser.add_argument('--eval', action='store_true')
 parser.add_argument('--figs', action='store_true')
 
 parser.add_argument('--dataset_dir', type=str, default='')
@@ -37,8 +38,9 @@ def get_args():
     if args.analytic_kl: args.exp_name += '_analytic'
     if args.no_iwae_lr: args.exp_name += '_noiwaelr'
 
-    args.figs_dir = 'figs/{}'.format(args.exp_name)
-    args.out_dir = 'result/{}'.format(args.exp_name)
+    args.figs_dir = os.path.join('figs', args.exp_name)
+    args.out_dir = os.path.join('result', args.exp_name)
+    args.best_model_file = os.path.join('result', args.exp_name, 'best_model.pt')
     if not os.path.exists(args.out_dir):
         os.makedirs(args.out_dir)
     if not os.path.exists(args.figs_dir):
