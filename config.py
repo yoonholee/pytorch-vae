@@ -7,10 +7,11 @@ parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--log_interval', type=int, default=500)
 parser.add_argument('--eval', action='store_true')
 parser.add_argument('--figs', action='store_true')
+parser.add_argument('--arch', type=str, default='bernoulli', choices=['bernoulli', 'conv'])
 
 parser.add_argument('--dataset_dir', type=str, default='')
 parser.add_argument('--dataset', type=str, default='stochmnist',
-                    choices=['stochmnist', 'omniglot', 'fixedmnist'])
+                    choices=['stochmnist', 'omniglot', 'fixedmnist', 'cifar10'])
 parser.add_argument('--batch_size', type=int, default=20) # iwae uses 20
 parser.add_argument('--test_batch_size', type=int, default=64)
 parser.add_argument('--mean_num', type=int, default=1) # M in "tighter variational bounds...". Use 1 for vanilla vae
@@ -29,6 +30,7 @@ def get_args():
 
     args.exp_name = 'm{}_k{}'.format(args.mean_num, args.importance_num)
     if args.dataset != 'stochmnist': args.exp_name += '_{}'.format(args.dataset)
+    if args.arch != 'bernoulli': args.exp_name += '_{}'.format(args.arch)
     if args.seed != 42: args.exp_name += '_seed{}'.format(args.seed)
     if args.batch_size != 20: args.exp_name += '_bs{}'.format(args.batch_size)
     if args.h_dim != 200: args.exp_name += '_h{}'.format(args.h_dim)
@@ -48,5 +50,7 @@ def get_args():
 
     if args.dataset in ['fixedmnist', 'stochmnist', 'omniglot']:
         args.x_dim = 784
+    elif args.dataset == 'cifar10':
+        args.x_dim = 32
     return args
 

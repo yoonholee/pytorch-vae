@@ -8,7 +8,8 @@ from tensorboardX import SummaryWriter
 
 from config import get_args
 from data_loader.data_loader import data_loaders
-from vae import VAE
+from model.bernoulli_vae import BernoulliVAE
+from model.conv_vae import ConvVAE
 
 args = get_args()
 if args.figs:
@@ -43,9 +44,11 @@ def test(epoch):
         return -np.concatenate(losses).mean()
     return map(get_loss_k, [args.importance_num, 1, 64, 5000])
 
-mean_img = (train_loader.dataset.train_data.type(torch.float) / 255).mean(0).reshape(-1).numpy()
-model = VAE(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
-            beta=args.beta, analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
+mean_img = train_loader.dataset.train_data.mean(0)
+#mean_img = (train_loader.dataset.train_data.type(torch.float) / 255).mean(0).reshape(-1).numpy()
+model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
+model = model_class(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
+                    beta=args.beta, analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
 if args.no_iwae_lr:
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=100, factor=10**(-1/7))
@@ -64,6 +67,7 @@ for epoch in range(1, args.epochs):
     train(epoch)
     with torch.no_grad():
         if args.figs and epoch % 10 == 1: draw_figs(model, args, test_loader, epoch)
+        '''
         test_loss, test_1, test_64, test_5000 = test(epoch)
         if test_loss < model.best_loss:
             model.best_loss = test_loss
@@ -75,4 +79,4 @@ for epoch in range(1, args.epochs):
         writer.add_scalar('test/loss_64', test_64, epoch)
         writer.add_scalar('test/LL', test_5000, epoch)
         print('==== Testing. LL: {:.4f} ====\n'.format(test_5000))
-
+        '''

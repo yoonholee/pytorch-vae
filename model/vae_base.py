@@ -9,28 +9,13 @@ class VAE(nn.Module):
         super(VAE, self).__init__()
         self.train_step = 0
         self.best_loss = np.inf
-        self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
-        self.beta = beta
         self.analytic_kl = analytic_kl
-        self.encoder = nn.Sequential(
-            nn.Linear(x_dim, h_dim), nn.Tanh(),
-            nn.Linear(h_dim, h_dim), nn.Tanh())
-        self.enc_mu = nn.Linear(h_dim, z_dim)
-        self.enc_sig = nn.Linear(h_dim, z_dim)
-        self.decoder = nn.Sequential(
-            nn.Linear(z_dim, h_dim), nn.Tanh(),
-            nn.Linear(h_dim, h_dim), nn.Tanh(),
-            nn.Linear(h_dim, x_dim)) # using Bern(logit) is equivalent to putting sigmoid here.
-        self.prior = Normal(torch.zeros([z_dim]).to(device),
-                            torch.ones([z_dim]).to(device))
-        def init(m):
-            if type(m) == nn.Linear:
-                torch.nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
-                m.bias.data.fill_(.01)
-        self.apply(init)
-        mean_img = np.clip(mean_img, 1e-8, 1. - 1e-7)
-        mean_img_logit = np.log(mean_img / (1. - mean_img))
-        self.decoder[-1].bias = torch.nn.Parameter(torch.Tensor(mean_img_logit))
+        self.prior = Normal(torch.zeros([z_dim]).to(device), torch.ones([z_dim]).to(device))
+
+    def init(self, m):
+        if type(m) == nn.Linear:
+            torch.nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
+            m.bias.data.fill_(.01)
 
     def encode(self, x):
         x = self.proc_data(x)
@@ -40,8 +25,7 @@ class VAE(nn.Module):
         return Normal(mu, std)
 
     def decode(self, z):
-        x = self.decoder(z)
-        return Bernoulli(logits=x)
+        pass
 
     def sample(self, num_samples=64):
         z = self.prior.sample((num_samples,))
@@ -50,7 +34,10 @@ class VAE(nn.Module):
 
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
-        lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
+        if isinstance(x_dist, Bernoulli):
+            lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
+        elif isinstance(x_dist, Normal):
+            lpxz = x_dist.log_prob(true_x).sum([-3, -2, -1]) # equivalent to MSE
 
         if self.analytic_kl and is_vae:
             # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.

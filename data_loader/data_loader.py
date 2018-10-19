@@ -18,6 +18,8 @@ def data_loaders(args):
         loader_fn, root = fixedMNIST, './dataset/fixedmnist'
     elif args.dataset == 'stochmnist':
         loader_fn, root = stochMNIST, './dataset/stochmnist'
+    elif args.dataset == 'cifar10':
+        loader_fn, root = datasets.CIFAR10, './dataset/cifar10'
 
     if args.dataset_dir != '': root = args.dataset_dir
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}
