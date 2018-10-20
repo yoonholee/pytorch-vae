@@ -16,7 +16,7 @@ parser.add_argument('--batch_size', type=int, default=20) # iwae uses 20
 parser.add_argument('--test_batch_size', type=int, default=64)
 parser.add_argument('--mean_num', type=int, default=1) # M in "tighter variational bounds...". Use 1 for vanilla vae
 parser.add_argument('--importance_num', type=int, default=1) # k of iwae. Use 1 for vanilla vae
-parser.add_argument('--epochs', type=int, default=4000) # iwae uses 3280
+parser.add_argument('--epochs', type=int, default=3280) # iwae uses 3280
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--no_iwae_lr', action='store_true')
 
@@ -39,6 +39,7 @@ def get_args():
     if args.beta != 1: args.exp_name += '_beta{}'.format(args.beta)
     if args.analytic_kl: args.exp_name += '_analytic'
     if args.no_iwae_lr: args.exp_name += '_noiwaelr'
+    if args.epochs != 3280: args.exp_name += '_epoch{}'.format(args.epochs)
 
     args.figs_dir = os.path.join('figs', args.exp_name)
     args.out_dir = os.path.join('result', args.exp_name)

@@ -12,7 +12,7 @@ def draw_gif(name, figs_dir, glob_str):
     imageio.mimsave('{}/{}'.format(figs_dir, name), images, duration=.5)
 
 def draw_figs(model, args, test_loader, epoch):
-    samples = model.sample(num_samples=100).view(-1, 28, 28).data.cpu().numpy()
+    samples = model.sample(num_samples=100).data.cpu().numpy()
     plt.figure(figsize=(5, 5))
     plt.suptitle('Samples, Epoch {}'.format(epoch), fontsize=20)
     plt.axis('square')

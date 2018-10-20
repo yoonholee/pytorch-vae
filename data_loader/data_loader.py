@@ -10,6 +10,7 @@ import scipy.io
 from .stoch_mnist import stochMNIST
 from .omniglot import omniglot
 from .fixed_mnist import fixedMNIST
+from .cifar10 import cifar10
 
 def data_loaders(args):
     if args.dataset == 'omniglot':
@@ -19,7 +20,7 @@ def data_loaders(args):
     elif args.dataset == 'stochmnist':
         loader_fn, root = stochMNIST, './dataset/stochmnist'
     elif args.dataset == 'cifar10':
-        loader_fn, root = datasets.CIFAR10, './dataset/cifar10'
+        loader_fn, root = cifar10, './dataset/cifar10'
 
     if args.dataset_dir != '': root = args.dataset_dir
     kwargs = {'num_workers': 4, 'pin_memory': True} if args.cuda else {}

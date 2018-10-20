@@ -14,3 +14,8 @@ class stochMNIST(datasets.MNIST):
         img = transforms.ToTensor()(img)
         img = torch.bernoulli(img) # stochastically binarize
         return img, target
+
+    def get_mean_img(self):
+        imgs = self.train_data.type(torch.float) / 255
+        mean_img = imgs.mean(0).reshape(-1).numpy()
+        return mean_img

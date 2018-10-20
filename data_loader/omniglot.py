@@ -40,6 +40,9 @@ class omniglot(data.Dataset):
         data = reshape_data(omni_raw[data_str].T.astype('float32'))
         return data
 
+    def get_mean_img(self):
+        return self.data.mean(0)
+
     def download(self):
         if self._check_exists():
             return

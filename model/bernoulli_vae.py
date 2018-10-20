@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.distributions.bernoulli import Bernoulli
+from torch.distributions.normal import Normal
 from .vae_base import VAE
 
 class BernoulliVAE(VAE):
@@ -23,7 +24,22 @@ class BernoulliVAE(VAE):
         mean_img_logit = np.log(mean_img / (1. - mean_img))
         self.decoder[-1].bias = torch.nn.Parameter(torch.Tensor(mean_img_logit))
 
+    def init(self, module):
+        if type(module) == nn.Linear:
+            torch.nn.init.xavier_uniform_(module.weight, gain=nn.init.calculate_gain('tanh'))
+            module.bias.data.fill_(.01)
+
+    def encode(self, x):
+        x = self.proc_data(x)
+        h = self.encoder(x)
+        mu, _std = self.enc_mu(h), self.enc_sig(h)
+        return Normal(mu, nn.functional.softplus(_std)) # torch.exp(.5 * _std)
+
     def decode(self, z):
         x = self.decoder(z)
         return Bernoulli(logits=x)
+
+    def lpxz(self, true_x, x_dist):
+        return x_dist.log_prob(true_x).sum(-1)
+
 

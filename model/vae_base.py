@@ -7,37 +7,38 @@ from torch.distributions.bernoulli import Bernoulli
 class VAE(nn.Module):
     def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
         super(VAE, self).__init__()
+        # XXX: get something like img_shape here
         self.train_step = 0
         self.best_loss = np.inf
         self.analytic_kl = analytic_kl
         self.prior = Normal(torch.zeros([z_dim]).to(device), torch.ones([z_dim]).to(device))
 
-    def init(self, m):
-        if type(m) == nn.Linear:
-            torch.nn.init.xavier_uniform_(m.weight, gain=nn.init.calculate_gain('tanh'))
-            m.bias.data.fill_(.01)
+    def proc_data(self, x):
+        pass
 
     def encode(self, x):
-        x = self.proc_data(x)
-        h = self.encoder(x)
-        mu, _std = self.enc_mu(h), self.enc_sig(h)
-        std = nn.functional.softplus(_std) #std = torch.exp(.5 * _std)
-        return Normal(mu, std)
+        pass
 
     def decode(self, z):
         pass
 
+    def lpxz(self, true_x, x_dist):
+        pass
+
     def sample(self, num_samples=64):
         z = self.prior.sample((num_samples,))
-        sample = self.decode(z).probs
-        return sample.view(num_samples, 1, 28, 28)
+        x_dist = self.decode(z)
+        # XXX: replace with image shape
+        return x_dist.sample().view(num_samples, 28, 28)
 
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
-        if isinstance(x_dist, Bernoulli):
-            lpxz = x_dist.log_prob(true_x).sum(-1) # equivalent to binary cross entropy.
+        lpxz = self.lpxz(true_x, x_dist)
+        # XXX: move this into convvae
+        '''
         elif isinstance(x_dist, Normal):
             lpxz = x_dist.log_prob(true_x).sum([-3, -2, -1]) # equivalent to MSE
+        '''
 
         if self.analytic_kl and is_vae:
             # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.

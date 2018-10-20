@@ -40,13 +40,16 @@ class fixedMNIST(data.Dataset):
             data = np.array(data)
         return data
 
+    def get_mean_img(self):
+        return self.data.mean(0).flatten()
+
     def download(self):
         if self._check_exists():
             return
         if not os.path.exists(self.root):
             os.makedirs(self.root)
 
-        print('Downloading binary MNIST...')
+        print('Downloading MNIST with fixed binarization...')
         for dataset in ['train', 'valid', 'test']:
             filename = 'binarized_mnist_{}.amat'.format(dataset)
             url = 'http://www.cs.toronto.edu/~larocheh/public/datasets/binarized_mnist/binarized_mnist_{}.amat'.format(dataset)

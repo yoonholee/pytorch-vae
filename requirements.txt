@@ -1,6 +1,9 @@
 torch>=0.4
 h5py
 scipy
+matplotlib
+imageio
+pathlib
 
 gspread
 oauth2client
