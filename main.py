@@ -1,6 +1,5 @@
 import os
 import sys
-import argparse
 import numpy as np
 import torch
 from torch import optim
@@ -21,6 +20,7 @@ torch.manual_seed(args.seed)
 if args.cuda: torch.cuda.manual_seed_all(args.seed)
 writer = SummaryWriter(args.out_dir)
 
+
 def train(epoch):
     for batch_idx, (data, _) in enumerate(train_loader):
         optimizer.zero_grad()
@@ -36,12 +36,14 @@ def train(epoch):
             writer.add_scalar('train/loss', loss.item(), model.train_step)
             writer.add_scalar('train/loss_1', loss_1, model.train_step)
 
+
 def test(epoch):
     elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
     def get_loss_k(k):
         losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
         return -np.concatenate(losses).mean()
     return map(get_loss_k, [args.importance_num, 1, 64, 5000])
+
 
 model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
 mean_img = train_loader.dataset.get_mean_img()
@@ -59,7 +61,7 @@ if args.eval:
     model.load_state_dict(torch.load(args.best_model_file))
     with torch.no_grad():
         print(list(test(0)))
-        if args.figs: draw_figs(model, args, test_loader, epoch)
+        if args.figs: draw_figs(model, args, test_loader, 0)
     sys.exit()
 
 for epoch in range(1, args.epochs):
@@ -81,4 +83,3 @@ for epoch in range(1, args.epochs):
 
 row_data = [args.exp_name, str(test_5000), str(test_64), str(test_64-test_5000)]
 upload_to_google_sheets(row_data=row_data)
-

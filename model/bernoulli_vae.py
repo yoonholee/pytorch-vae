@@ -5,6 +5,7 @@ from torch.distributions.bernoulli import Bernoulli
 from torch.distributions.normal import Normal
 from .vae_base import VAE
 
+
 class BernoulliVAE(VAE):
     def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
         VAE.__init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img)
@@ -17,7 +18,7 @@ class BernoulliVAE(VAE):
         self.decoder = nn.Sequential(
             nn.Linear(z_dim, h_dim), nn.Tanh(),
             nn.Linear(h_dim, h_dim), nn.Tanh(),
-            nn.Linear(h_dim, x_dim)) # using Bern(logit) is equivalent to putting sigmoid here.
+            nn.Linear(h_dim, x_dim))  # using Bern(logit) is equivalent to putting sigmoid here.
 
         self.apply(self.init)
         mean_img = np.clip(mean_img, 1e-8, 1. - 1e-7)
@@ -33,7 +34,7 @@ class BernoulliVAE(VAE):
         x = self.proc_data(x)
         h = self.encoder(x)
         mu, _std = self.enc_mu(h), self.enc_sig(h)
-        return Normal(mu, nn.functional.softplus(_std)) # torch.exp(.5 * _std)
+        return Normal(mu, nn.functional.softplus(_std))  # torch.exp(.5 * _std)
 
     def decode(self, z):
         x = self.decoder(z)
@@ -41,5 +42,3 @@ class BernoulliVAE(VAE):
 
     def lpxz(self, true_x, x_dist):
         return x_dist.log_prob(true_x).sum(-1)
-
-

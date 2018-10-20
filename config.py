@@ -12,11 +12,11 @@ parser.add_argument('--arch', type=str, default='bernoulli', choices=['bernoulli
 parser.add_argument('--dataset_dir', type=str, default='')
 parser.add_argument('--dataset', type=str, default='stochmnist',
                     choices=['stochmnist', 'omniglot', 'fixedmnist', 'cifar10'])
-parser.add_argument('--batch_size', type=int, default=20) # iwae uses 20
+parser.add_argument('--batch_size', type=int, default=20)  # iwae uses 20
 parser.add_argument('--test_batch_size', type=int, default=64)
-parser.add_argument('--mean_num', type=int, default=1) # M in "tighter variational bounds...". Use 1 for vanilla vae
-parser.add_argument('--importance_num', type=int, default=1) # k of iwae. Use 1 for vanilla vae
-parser.add_argument('--epochs', type=int, default=3280) # iwae uses 3280
+parser.add_argument('--mean_num', type=int, default=1)  # M in "tighter variational bounds...". Use 1 for vanilla vae
+parser.add_argument('--importance_num', type=int, default=1)  # k of iwae. Use 1 for vanilla vae
+parser.add_argument('--epochs', type=int, default=3280)  # iwae uses 3280
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--no_iwae_lr', action='store_true')
 
@@ -24,6 +24,7 @@ parser.add_argument('--analytic_kl', action='store_true')
 parser.add_argument('--h_dim', type=int, default=200)
 parser.add_argument('--z_dim', type=int, default=50)
 parser.add_argument('--beta', type=float, default=1)
+
 
 def get_args():
     args = parser.parse_args()

@@ -1,11 +1,12 @@
 import h5py
 import torch
 import torch.utils.data as data
-from torchvision import datasets, transforms
+from torchvision import transforms
 import os
 import numpy as np
 from PIL import Image
 import urllib.request
+
 
 class fixedMNIST(data.Dataset):
     """ Binarized MNIST dataset, proposed in
@@ -29,7 +30,7 @@ class fixedMNIST(data.Dataset):
         img = self.data[index]
         img = Image.fromarray(img)
         img = transforms.ToTensor()(img).type(torch.FloatTensor)
-        return img, torch.tensor(-1) # Meaningless tensor instead of target
+        return img, torch.tensor(-1)  # Meaningless tensor instead of target
 
     def __len__(self):
         return len(self.data)
@@ -64,7 +65,7 @@ class fixedMNIST(data.Dataset):
             return np.array([[int(i)for i in line.split()] for line in lines]).astype('int8')
 
         train_data = np.concatenate([filename_to_np(os.path.join(self.root, self.train_file)),
-                                        filename_to_np(os.path.join(self.root, self.val_file))])
+                                     filename_to_np(os.path.join(self.root, self.val_file))])
         test_data = filename_to_np(os.path.join(self.root, self.val_file))
         with h5py.File(os.path.join(self.root, 'data.h5'), 'w') as hf:
             hf.create_dataset('train', data=train_data.reshape(-1, 28, 28))
@@ -73,4 +74,3 @@ class fixedMNIST(data.Dataset):
 
     def _check_exists(self):
         return os.path.exists(os.path.join(self.root, 'data.h5'))
-

@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 from torch.distributions.normal import Normal
-from torch.distributions.bernoulli import Bernoulli
+
 
 class VAE(nn.Module):
     def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
@@ -40,7 +40,7 @@ class VAE(nn.Module):
             lpxz = x_dist.log_prob(true_x).sum([-3, -2, -1]) # equivalent to MSE
         '''
 
-        if self.analytic_kl and is_vae:
+        if self.analytic_kl:
             # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
             assert z.size(0) == 1 and z.size(1) == 1
             kl = torch.distributions.kl.kl_divergence(z_dist, self.prior).sum(-1)
@@ -60,11 +60,10 @@ class VAE(nn.Module):
 
     def forward(self, true_x, mean_n, imp_n):
         z_dist = self.encode(true_x)
-        z = z_dist.rsample(torch.Size([mean_n, imp_n])) # mean_n, imp_n, batch_size, z_dim
+        z = z_dist.rsample(torch.Size([mean_n, imp_n]))  # mean_n, imp_n, batch_size, z_dim
         x_dist = self.decode(z)
 
-        elbo = self.elbo(true_x, z, x_dist, z_dist) # mean_n, imp_n, batch_size
-        elbo_iwae = self.logmeanexp(elbo, 1).squeeze(1) # mean_n, batch_size
-        elbo_iwae_m = torch.mean(elbo_iwae, 0) # batch_size
+        elbo = self.elbo(true_x, z, x_dist, z_dist)  # mean_n, imp_n, batch_size
+        elbo_iwae = self.logmeanexp(elbo, 1).squeeze(1)  # mean_n, batch_size
+        elbo_iwae_m = torch.mean(elbo_iwae, 0)  # batch_size
         return {'elbo': elbo, 'loss': -elbo_iwae_m}
-

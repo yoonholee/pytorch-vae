@@ -6,6 +6,7 @@ from PIL import Image
 import urllib.request
 import scipy.io
 
+
 class omniglot(data.Dataset):
     """ omniglot dataset """
     url = 'https://github.com/yburda/iwae/raw/master/datasets/OMNIGLOT/chardata.mat'
@@ -25,8 +26,8 @@ class omniglot(data.Dataset):
         img = self.data[index].reshape(28, 28)
         img = Image.fromarray(img)
         img = transforms.ToTensor()(img).type(torch.FloatTensor)
-        img = torch.bernoulli(img) # stochastically binarize
-        return img, torch.tensor(-1) # Meaningless tensor instead of target
+        img = torch.bernoulli(img)  # stochastically binarize
+        return img, torch.tensor(-1)  # Meaningless tensor instead of target
 
     def __len__(self):
         return len(self.data)
@@ -56,4 +57,3 @@ class omniglot(data.Dataset):
 
     def _check_exists(self):
         return os.path.exists(os.path.join(self.root, 'chardata.mat'))
-

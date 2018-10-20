@@ -6,10 +6,12 @@ import pathlib
 import numpy as np
 import torch
 
+
 def draw_gif(name, figs_dir, glob_str):
     files = [file for file in pathlib.Path(figs_dir).glob(glob_str)]
     images = [imageio.imread(str(file)) for file in sorted(files)]
     imageio.mimsave('{}/{}'.format(figs_dir, name), images, duration=.5)
+
 
 def draw_figs(model, args, test_loader, epoch):
     samples = model.sample(num_samples=100).data.cpu().numpy()
@@ -67,4 +69,3 @@ def draw_figs(model, args, test_loader, epoch):
         draw_gif('latent.gif', args.figs_dir, 'latent*.jpg')
 
     plt.close('all')
-

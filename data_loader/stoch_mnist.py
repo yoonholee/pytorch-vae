@@ -2,6 +2,7 @@ import torch
 from torchvision import datasets, transforms
 from PIL import Image
 
+
 class stochMNIST(datasets.MNIST):
     """ Gets a new stochastic binarization of MNIST at each call. """
     def __getitem__(self, index):
@@ -12,7 +13,7 @@ class stochMNIST(datasets.MNIST):
 
         img = Image.fromarray(img.numpy(), mode='L')
         img = transforms.ToTensor()(img)
-        img = torch.bernoulli(img) # stochastically binarize
+        img = torch.bernoulli(img)  # stochastically binarize
         return img, target
 
     def get_mean_img(self):

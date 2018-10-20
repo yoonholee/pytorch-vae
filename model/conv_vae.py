@@ -1,18 +1,19 @@
-import numpy as np
 import torch
 from torch import nn
 from torch.distributions.normal import Normal
-from torch.distributions.bernoulli import Bernoulli
 from .vae_base import VAE
 
-# FIXME: integrate so that plot etc works.
+
 class Flatten(nn.Module):
+    # FIXME: integrate so that plot etc works.
     def forward(self, input):
         return input.view(input.size(0), 16 * 8 * 8).contiguous()
+
 
 class UnFlatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), 16, 8, 8).contiguous()
+
 
 class ConvVAE(VAE):
     def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
@@ -44,4 +45,3 @@ class ConvVAE(VAE):
         x = x.view([mean_n, imp_n, bs, 6, 32, 32]).contiguous()
         x_mean, x_std = x[:, :, :, :3, :, :].contiguous(), nn.functional.softplus(x[:, :, :, 3:, :, :]).contiguous()
         return Normal(x_mean, x_std)
-
