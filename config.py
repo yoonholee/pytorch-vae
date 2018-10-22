@@ -23,25 +23,24 @@ parser.add_argument('--no_iwae_lr', action='store_true')
 parser.add_argument('--analytic_kl', action='store_true')
 parser.add_argument('--h_dim', type=int, default=200)
 parser.add_argument('--z_dim', type=int, default=50)
-parser.add_argument('--beta', type=float, default=1)
 
 
 def get_args():
     args = parser.parse_args()
 
-    args.exp_name = 'm{}_k{}'.format(args.mean_num, args.importance_num)
-    if args.dataset != 'stochmnist': args.exp_name += '_{}'.format(args.dataset)
-    if args.arch != 'bernoulli': args.exp_name += '_{}'.format(args.arch)
-    if args.seed != 42: args.exp_name += '_seed{}'.format(args.seed)
-    if args.batch_size != 20: args.exp_name += '_bs{}'.format(args.batch_size)
-    if args.h_dim != 200: args.exp_name += '_h{}'.format(args.h_dim)
-    if args.z_dim != 50: args.exp_name += '_z{}'.format(args.z_dim)
-    if args.learning_rate != 1e-3: args.exp_name += '_z{}'.format(args.learning_rate)
-    if args.beta != 1: args.exp_name += '_beta{}'.format(args.beta)
-    if args.analytic_kl: args.exp_name += '_analytic'
-    if args.no_iwae_lr: args.exp_name += '_noiwaelr'
-    if args.epochs != 3280: args.exp_name += '_epoch{}'.format(args.epochs)
+    def cstr(arg, arg_name, default, custom_str=False):
+        """ Get config str for arg, ignoring if set to default. """
+        not_default = arg != default
+        if not custom_str:
+            custom_str = f'_{arg_name}{arg}'
+        return custom_str if not_default else ''
 
+    args.exp_name = (f'm{args.mean_num}_k{args.importance_num}'
+                     f'{cstr(args.dataset, "", "stochmnist")}{cstr(args.arch, "", "bernoulli")}'
+                     f'{cstr(args.seed, "seed", 42)}{cstr(args.batch_size, "bs", 20)}'
+                     f'{cstr(args.h_dim, "h", 200)}{cstr(args.z_dim, "z", 50)}'
+                     f'{cstr(args.learning_rate, "lr", 1e-3)}{cstr(args.analytic_kl, None, False, "_analytic")}'
+                     f'{cstr(args.no_iwae_lr, None, False, "_noiwae")}{cstr(args.epochs, "epoch", 3280)}')
     args.figs_dir = os.path.join('figs', args.exp_name)
     args.out_dir = os.path.join('result', args.exp_name)
     args.best_model_file = os.path.join('result', args.exp_name, 'best_model.pt')
@@ -54,5 +53,5 @@ def get_args():
         args.x_dim = 784
     elif args.dataset == 'cifar10':
         args.x_dim = 32
+    #TODO: something like args.img_size here
     return args
-
