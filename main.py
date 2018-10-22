@@ -17,7 +17,8 @@ args.cuda = torch.cuda.is_available()
 device = torch.device("cuda:0" if args.cuda else "cpu")
 train_loader, test_loader = data_loaders(args)
 torch.manual_seed(args.seed)
-if args.cuda: torch.cuda.manual_seed_all(args.seed)
+if args.cuda:
+    torch.cuda.manual_seed_all(args.seed)
 writer = SummaryWriter(args.out_dir)
 
 
@@ -39,6 +40,7 @@ def train(epoch):
 
 def test(epoch):
     elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
+
     def get_loss_k(k):
         losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
         return -np.concatenate(losses).mean()
@@ -48,7 +50,7 @@ def test(epoch):
 model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
 mean_img = train_loader.dataset.get_mean_img()
 model = model_class(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
-                    beta=args.beta, analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
+                    analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
 if args.no_iwae_lr:
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -61,14 +63,16 @@ if args.eval:
     model.load_state_dict(torch.load(args.best_model_file))
     with torch.no_grad():
         print(list(test(0)))
-        if args.figs: draw_figs(model, args, test_loader, 0)
+        if args.figs:
+            draw_figs(model, args, test_loader, 0)
     sys.exit()
 
 for epoch in range(1, args.epochs):
     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
     train(epoch)
     with torch.no_grad():
-        if args.figs and epoch % 100 == 1: draw_figs(model, args, test_loader, epoch)
+        if args.figs and epoch % 100 == 1:
+            draw_figs(model, args, test_loader, epoch)
         test_loss, test_1, test_64, test_5000 = test(epoch)
         if test_loss < model.best_loss:
             model.best_loss = test_loss

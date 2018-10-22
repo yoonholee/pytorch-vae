@@ -5,7 +5,7 @@ from torch.distributions.normal import Normal
 
 
 class VAE(nn.Module):
-    def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
+    def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
         super(VAE, self).__init__()
         # XXX: get something like img_shape here
         self.train_step = 0

@@ -16,8 +16,8 @@ class UnFlatten(nn.Module):
 
 
 class ConvVAE(VAE):
-    def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
-        VAE.__init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img)
+    def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
+        VAE.__init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img)
         self.proc_data = lambda x: x.to(device)
         self.encoder = nn.Sequential(
             nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1), nn.ReLU(),

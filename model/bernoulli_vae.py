@@ -7,8 +7,8 @@ from .vae_base import VAE
 
 
 class BernoulliVAE(VAE):
-    def __init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img):
-        VAE.__init__(self, device, x_dim, h_dim, z_dim, beta, analytic_kl, mean_img)
+    def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
+        VAE.__init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img)
         self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
         self.encoder = nn.Sequential(
             nn.Linear(x_dim, h_dim), nn.Tanh(),
