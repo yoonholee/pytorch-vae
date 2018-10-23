@@ -25,7 +25,7 @@ def draw_figs(model, args, test_loader, epoch):
         plt.axis('off')
     plt.savefig('figs/{}/samples_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
-    draw_gif('samples.gif', args.figs_dir, 'samples*.jpg')
+    draw_gif('{}_samples.gif'.format(args.exp_name), args.figs_dir, 'samples*.jpg')
 
     for batch_idx, (data, _) in enumerate(test_loader):
         break
@@ -48,7 +48,7 @@ def draw_figs(model, args, test_loader, epoch):
         plt.axis('off')
     plt.savefig('figs/{}/reconstruction_{:04}.jpg'.format(args.exp_name, epoch))
     plt.clf()
-    draw_gif('reconstruction.gif', args.figs_dir, 'reconstruction*.jpg')
+    draw_gif('{}_reconstruction.gif'.format(args.exp_name), args.figs_dir, 'reconstruction*.jpg')
 
     if args.z_dim == 2:
         latent_space, labels = [], []
@@ -66,6 +66,6 @@ def draw_figs(model, args, test_loader, epoch):
         plt.legend(frameon=True)
         plt.savefig('figs/{}/latent_{:04}.jpg'.format(args.exp_name, epoch))
         plt.clf()
-        draw_gif('latent.gif', args.figs_dir, 'latent*.jpg')
+        draw_gif('{}_latent.gif'.format(args.exp_name), args.figs_dir, 'latent*.jpg')
 
     plt.close('all')

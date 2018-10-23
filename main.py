@@ -39,12 +39,12 @@ def train(epoch):
 
 
 def test(epoch):
-    elbos = [model(data, mean_n=1, imp_n=5000)['elbo'].squeeze(0) for data, _ in test_loader]
+    elbos = [model(data, mean_n=1, imp_n=args.log_likelihood_k)['elbo'].squeeze(0) for data, _ in test_loader]
 
     def get_loss_k(k):
         losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
         return -np.concatenate(losses).mean()
-    return map(get_loss_k, [args.importance_num, 1, 64, 5000])
+    return map(get_loss_k, [args.importance_num, 1, 64, args.log_likelihood_k])
 
 
 model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
@@ -53,8 +53,7 @@ model = model_class(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim
                     analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
 if args.no_iwae_lr:
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='min', patience=100, factor=10**(-1/7))
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=100, factor=10**(-1/7))
 else:
     milestones = np.cumsum([3**i for i in range(8)])
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=10**(-1/7))
@@ -73,7 +72,7 @@ for epoch in range(1, args.epochs):
     with torch.no_grad():
         if args.figs and epoch % 100 == 1:
             draw_figs(model, args, test_loader, epoch)
-        test_loss, test_1, test_64, test_5000 = test(epoch)
+        test_loss, test_1, test_64, test_ll = test(epoch)
         if test_loss < model.best_loss:
             model.best_loss = test_loss
             torch.save(model.state_dict(), args.best_model_file)
@@ -82,8 +81,8 @@ for epoch in range(1, args.epochs):
         writer.add_scalar('test/loss', test_loss, epoch)
         writer.add_scalar('test/loss_1', test_1, epoch)
         writer.add_scalar('test/loss_64', test_64, epoch)
-        writer.add_scalar('test/LL', test_5000, epoch)
-        print('==== Testing. LL: {:.4f} ====\n'.format(test_5000))
+        writer.add_scalar('test/LL', test_ll, epoch)
+        print('==== Testing. LL: {:.4f} ====\n'.format(test_ll))
 
-row_data = [args.exp_name, str(test_5000), str(test_64), str(test_64-test_5000)]
+row_data = [args.exp_name, str(test_ll), str(test_64), str(test_64-test_ll)]
 upload_to_google_sheets(row_data=row_data)

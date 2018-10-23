@@ -34,11 +34,6 @@ class VAE(nn.Module):
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)
         lpxz = self.lpxz(true_x, x_dist)
-        # XXX: move this into convvae
-        '''
-        elif isinstance(x_dist, Normal):
-            lpxz = x_dist.log_prob(true_x).sum([-3, -2, -1]) # equivalent to MSE
-        '''
 
         if self.analytic_kl:
             # SGVB^B: -KL(q(z|x)||p(z)) + log p(x|z). Use when KL can be done analytically.
