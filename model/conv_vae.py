@@ -15,6 +15,7 @@ class UnFlatten(nn.Module):
 
 
 class ConvVAE(VAE):
+    # XXX: This class does not work at the moment
     def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
         # FIXME: integrate so that plot etc works.
         VAE.__init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img)

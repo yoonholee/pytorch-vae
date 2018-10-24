@@ -21,32 +21,6 @@ if args.cuda:
     torch.cuda.manual_seed_all(args.seed)
 writer = SummaryWriter(args.out_dir)
 
-
-def train(epoch):
-    for batch_idx, (data, _) in enumerate(train_loader):
-        optimizer.zero_grad()
-        outs = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
-        loss_1, loss = -outs['elbo'].cpu().data.numpy().mean(), outs['loss'].mean()
-        loss.backward()
-        optimizer.step()
-
-        model.train_step += 1
-        if model.train_step % args.log_interval == 0:
-            print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
-                epoch, 100. * batch_idx / len(train_loader), loss.item()))
-            writer.add_scalar('train/loss', loss.item(), model.train_step)
-            writer.add_scalar('train/loss_1', loss_1, model.train_step)
-
-
-def test(epoch):
-    elbos = [model(data, mean_n=1, imp_n=args.log_likelihood_k)['elbo'].squeeze(0) for data, _ in test_loader]
-
-    def get_loss_k(k):
-        losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
-        return -np.concatenate(losses).mean()
-    return map(get_loss_k, [args.importance_num, 1, 64, args.log_likelihood_k])
-
-
 model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
 mean_img = train_loader.dataset.get_mean_img()
 model = model_class(device=device, img_shape=args.img_shape, h_dim=args.h_dim, z_dim=args.z_dim,
@@ -58,6 +32,30 @@ else:
     milestones = np.cumsum([3**i for i in range(8)])
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=10**(-1/7))
 
+
+def train(epoch):
+    for batch_idx, (data, _) in enumerate(train_loader):
+        optimizer.zero_grad()
+        outs = model(data, mean_n=args.mean_num, imp_n=args.importance_num)
+        loss_1, loss = -outs['elbo'].cpu().data.numpy().mean(), outs['loss'].mean()
+        loss.backward()
+        optimizer.step()
+        model.train_step += 1
+        if model.train_step % args.log_interval == 0:
+            print('Train Epoch: {} ({:.0f}%)\tLoss: {:.6f}'.format(
+                epoch, 100. * batch_idx / len(train_loader), loss.item()))
+            writer.add_scalar('train/loss', loss.item(), model.train_step)
+            writer.add_scalar('train/loss_1', loss_1, model.train_step)
+
+
+def test(epoch):
+    elbos = [model(data, mean_n=1, imp_n=args.log_likelihood_k)['elbo'].squeeze(0) for data, _ in test_loader]
+    def get_loss_k(k):
+        losses = [model.logmeanexp(elbo[:k], 0).cpu().numpy().flatten() for elbo in elbos]
+        return -np.concatenate(losses).mean()
+    return map(get_loss_k, [args.importance_num, 1, 64, args.log_likelihood_k])
+
+
 if args.eval:
     model.load_state_dict(torch.load(args.best_model_file))
     with torch.no_grad():
@@ -66,7 +64,7 @@ if args.eval:
             draw_figs(model, args, test_loader, 0)
     sys.exit()
 
-for epoch in range(1, args.epochs):
+for epoch in range(1, args.epochs+1):
     writer.add_scalar('learning_rate', optimizer.param_groups[0]['lr'], epoch)
     train(epoch)
     with torch.no_grad():
@@ -83,6 +81,7 @@ for epoch in range(1, args.epochs):
         writer.add_scalar('test/loss_64', test_64, epoch)
         writer.add_scalar('test/LL', test_ll, epoch)
         print('==== Testing. LL: {:.4f} ====\n'.format(test_ll))
+
 if args.to_gsheets:
     row_data = [args.exp_name, str(test_ll), str(test_64), str(test_64-test_ll)]
     upload_to_google_sheets(row_data=row_data)

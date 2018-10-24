@@ -8,11 +8,11 @@ parser.add_argument('--log_interval', type=int, default=500)
 parser.add_argument('--eval', action='store_true')
 parser.add_argument('--figs', action='store_true')
 parser.add_argument('--to_gsheets', action='store_true')
-parser.add_argument('--arch', type=str, default='bernoulli', choices=['bernoulli', 'conv'])
+parser.add_argument('--arch', type=str, default='bernoulli', choices=['bernoulli']) # TODO: make conv work
 
 parser.add_argument('--dataset_dir', type=str, default='')
 parser.add_argument('--dataset', type=str, default='stochmnist',
-                    choices=['stochmnist', 'omniglot', 'fixedmnist', 'cifar10'])
+                    choices=['stochmnist', 'omniglot', 'fixedmnist']) # TODO: make cifar10 work
 parser.add_argument('--batch_size', type=int, default=20)  # iwae uses 20
 parser.add_argument('--test_batch_size', type=int, default=64)
 parser.add_argument('--epochs', type=int, default=3280)  # iwae uses 3280
