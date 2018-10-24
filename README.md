@@ -1,7 +1,7 @@
 # pytorch-vae
 
-A minimal implementation of [VAE](https://arxiv.org/abs/1312.6114), [IWAE](https://arxiv.org/abs/1509.00519), and [MIWAE](https://arxiv.org/abs/1802.04537).
-We followed the experimental setup of the [IWAE paper](https://arxiv.org/abs/1509.00519) as closely as possible.
+A minimal pytorch implementation of [VAE](https://arxiv.org/abs/1312.6114), [IWAE](https://arxiv.org/abs/1509.00519), and [MIWAE](https://arxiv.org/abs/1802.04537).
+We followed the experimental details of the [IWAE paper](https://arxiv.org/abs/1509.00519).
 <br><br>
 
 
