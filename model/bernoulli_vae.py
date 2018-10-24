@@ -7,8 +7,10 @@ from .vae_base import VAE
 
 
 class BernoulliVAE(VAE):
-    def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
-        VAE.__init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img)
+    def __init__(self, device, img_shape, h_dim, z_dim, analytic_kl, mean_img):
+        super().__init__(device, z_dim, analytic_kl)
+        x_dim = np.prod(img_shape)
+        self.img_shape = img_shape
         self.proc_data = lambda x: x.to(device).reshape(-1, x_dim)
         self.encoder = nn.Sequential(
             nn.Linear(x_dim, h_dim), nn.Tanh(),
@@ -42,3 +44,8 @@ class BernoulliVAE(VAE):
 
     def lpxz(self, true_x, x_dist):
         return x_dist.log_prob(true_x).sum(-1)
+
+    def sample(self, num_samples=64):
+        z = self.prior.sample((num_samples,))
+        x_dist = self.decode(z)
+        return x_dist.sample().view(num_samples, *self.img_shape)

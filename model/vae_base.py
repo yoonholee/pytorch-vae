@@ -5,9 +5,8 @@ from torch.distributions.normal import Normal
 
 
 class VAE(nn.Module):
-    def __init__(self, device, x_dim, h_dim, z_dim, analytic_kl, mean_img):
-        super(VAE, self).__init__()
-        # XXX: get something like img_shape here
+    def __init__(self, device, z_dim, analytic_kl):
+        super().__init__()
         self.train_step = 0
         self.best_loss = np.inf
         self.analytic_kl = analytic_kl
@@ -26,10 +25,7 @@ class VAE(nn.Module):
         pass
 
     def sample(self, num_samples=64):
-        z = self.prior.sample((num_samples,))
-        x_dist = self.decode(z)
-        # XXX: replace with image shape
-        return x_dist.sample().view(num_samples, 28, 28)
+        pass
 
     def elbo(self, true_x, z, x_dist, z_dist):
         true_x = self.proc_data(true_x)

@@ -7,6 +7,7 @@ parser.add_argument('--seed', type=int, default=42)
 parser.add_argument('--log_interval', type=int, default=500)
 parser.add_argument('--eval', action='store_true')
 parser.add_argument('--figs', action='store_true')
+parser.add_argument('--to_gsheets', action='store_true')
 parser.add_argument('--arch', type=str, default='bernoulli', choices=['bernoulli', 'conv'])
 
 parser.add_argument('--dataset_dir', type=str, default='')
@@ -51,6 +52,5 @@ def get_args():
         os.makedirs(args.figs_dir)
 
     args.log_likelihood_k = 100 if args.dataset == 'cifar10' else 5000
-    args.x_dim = 32*32 if args.dataset == 'cifar10' else 28*28
-    #TODO: something like args.img_size here
+    args.img_shape = (32, 32) if args.dataset == 'cifar10' else (28, 28)
     return args

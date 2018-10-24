@@ -4,12 +4,12 @@ import numpy as np
 import torch
 from torch import optim
 from tensorboardX import SummaryWriter
-from config import get_args
 from data_loader.data_loader import data_loaders
 from model.bernoulli_vae import BernoulliVAE
 from model.conv_vae import ConvVAE
-from to_sheets import upload_to_google_sheets
-from draw_figs import draw_figs
+from utils.config import get_args
+from utils.to_sheets import upload_to_google_sheets
+from utils.draw_figs import draw_figs
 
 args = get_args()
 os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu)
@@ -49,7 +49,7 @@ def test(epoch):
 
 model_class = BernoulliVAE if args.arch == 'bernoulli' else ConvVAE
 mean_img = train_loader.dataset.get_mean_img()
-model = model_class(device, x_dim=args.x_dim, h_dim=args.h_dim, z_dim=args.z_dim,
+model = model_class(device=device, img_shape=args.img_shape, h_dim=args.h_dim, z_dim=args.z_dim,
                     analytic_kl=args.analytic_kl, mean_img=mean_img).to(device)
 optimizer = optim.Adam(model.parameters(), lr=args.learning_rate, eps=1e-4)
 if args.no_iwae_lr:
@@ -83,6 +83,6 @@ for epoch in range(1, args.epochs):
         writer.add_scalar('test/loss_64', test_64, epoch)
         writer.add_scalar('test/LL', test_ll, epoch)
         print('==== Testing. LL: {:.4f} ====\n'.format(test_ll))
-
-row_data = [args.exp_name, str(test_ll), str(test_64), str(test_64-test_ll)]
-upload_to_google_sheets(row_data=row_data)
+if args.to_gsheets:
+    row_data = [args.exp_name, str(test_ll), str(test_64), str(test_64-test_ll)]
+    upload_to_google_sheets(row_data=row_data)
