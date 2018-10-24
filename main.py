@@ -8,7 +8,6 @@ from data_loader.data_loader import data_loaders
 from model.bernoulli_vae import BernoulliVAE
 from model.conv_vae import ConvVAE
 from utils.config import get_args
-from utils.to_sheets import upload_to_google_sheets
 from utils.draw_figs import draw_figs
 
 args = get_args()
@@ -83,5 +82,6 @@ for epoch in range(1, args.epochs+1):
         print('==== Testing. LL: {:.4f} ====\n'.format(test_ll))
 
 if args.to_gsheets:
+    from utils.to_sheets import upload_to_google_sheets
     row_data = [args.exp_name, str(test_ll), str(test_64), str(test_64-test_ll)]
     upload_to_google_sheets(row_data=row_data)
