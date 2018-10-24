@@ -35,3 +35,6 @@ For MIWAE(16, 4):
 See [the config file](https://github.com/yoonholee/pytorch-generative/blob/master/utils/config.py) for more options.
 
 ## Results
+<img src="assets/mnist_samples.gif" width="300" height="300" /><img src="assets/mnist_recon.gif" width="300" height="300" />
+<img src="assets/omni_samples.gif" width="300" height="300" /><img src="assets/omni_recon.gif" width="300" height="300" />
+
