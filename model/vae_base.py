@@ -10,7 +10,9 @@ class VAE(nn.Module):
         self.train_step = 0
         self.best_loss = np.inf
         self.analytic_kl = analytic_kl
-        self.prior = Normal(torch.zeros([z_dim]).to(device), torch.ones([z_dim]).to(device))
+        self.prior = Normal(
+            torch.zeros([z_dim]).to(device), torch.ones([z_dim]).to(device)
+        )
 
     def proc_data(self, x):
         pass
@@ -51,10 +53,11 @@ class VAE(nn.Module):
 
     def forward(self, true_x, mean_n, imp_n):
         z_dist = self.encode(true_x)
-        z = z_dist.rsample(torch.Size([mean_n, imp_n]))  # mean_n, imp_n, batch_size, z_dim
+        # mean_n, imp_n, batch_size, z_dim
+        z = z_dist.rsample(torch.Size([mean_n, imp_n]))
         x_dist = self.decode(z)
 
         elbo = self.elbo(true_x, z, x_dist, z_dist)  # mean_n, imp_n, batch_size
         elbo_iwae = self.logmeanexp(elbo, 1).squeeze(1)  # mean_n, batch_size
         elbo_iwae_m = torch.mean(elbo_iwae, 0)  # batch_size
-        return {'elbo': elbo, 'loss': -elbo_iwae_m}
+        return {"elbo": elbo, "loss": -elbo_iwae_m}
