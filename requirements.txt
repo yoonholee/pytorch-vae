@@ -1,5 +1,5 @@
 -i https://pypi.org/simple
-certifi==2019.6.16
+certifi==2022.12.7
 chardet==3.0.4
 cycler==0.10.0
 gspread==3.1.0
